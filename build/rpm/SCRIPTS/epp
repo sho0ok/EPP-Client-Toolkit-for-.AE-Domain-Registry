@@ -1,0 +1,8 @@
+#!/bin/bash
+#
+# EPP Client CLI wrapper
+#
+
+export EPP_CLIENT_CONFIG="/etc/epp-client/client.yaml"
+
+exec /opt/epp-client/venv/bin/python -m epp_cli.main "$@"

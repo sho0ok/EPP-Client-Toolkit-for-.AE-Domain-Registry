@@ -1,0 +1,19 @@
+# EPP Client Configuration
+
+server:
+  host: "epp.aeda.ae"           # EPP server hostname
+  port: 700                      # EPP server port
+
+tls:
+  cert_file: /etc/epp-client/tls/client.crt    # Your client certificate
+  key_file: /etc/epp-client/tls/client.key     # Your private key
+  ca_file: /etc/epp-client/tls/ca.crt          # Registry CA certificate
+  verify: true
+
+credentials:
+  client_id: "CHANGE_ME"         # Your registrar ID
+  password: "CHANGE_ME"          # Your password
+
+timeout:
+  connect: 30
+  read: 60
