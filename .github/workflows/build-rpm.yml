@@ -1,0 +1,85 @@
+name: Build RPM
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: rockylinux:9
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          dnf install -y rpm-build python3 python3-pip python3-devel gcc \
+            openssl-devel libffi-devel libxml2-devel libxslt-devel
+
+      - name: Create build directories
+        run: |
+          mkdir -p build/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+          mkdir -p build/rpmbuild/SOURCES/{src,config,scripts,venv}
+
+      - name: Copy source files
+        run: |
+          cp -r src/* build/rpmbuild/SOURCES/src/
+          cp build/rpm/SOURCES/config/client.yaml build/rpmbuild/SOURCES/config/
+          cp build/rpm/SCRIPTS/epp build/rpmbuild/SOURCES/scripts/
+
+      - name: Create virtual environment with dependencies
+        run: |
+          python3 -m venv build/rpmbuild/SOURCES/venv
+          source build/rpmbuild/SOURCES/venv/bin/activate
+          pip install --upgrade pip wheel
+          pip install lxml cryptography pyyaml python-dateutil
+          deactivate
+
+          # Fix venv paths to target location (/opt/epp-client/venv)
+          find build/rpmbuild/SOURCES/venv/bin -type f -exec sed -i "s|$PWD/build/rpmbuild/SOURCES/venv|/opt/epp-client/venv|g" {} \;
+          sed -i "s|$PWD/build/rpmbuild/SOURCES/venv|/opt/epp-client/venv|g" build/rpmbuild/SOURCES/venv/pyvenv.cfg 2>/dev/null || true
+
+      - name: Build RPM
+        run: |
+          cp build/rpm/SPECS/epp-client.spec build/rpmbuild/SPECS/
+          rpmbuild --define "_topdir $PWD/build/rpmbuild" \
+                   --define "_sourcedir $PWD/build/rpmbuild/SOURCES" \
+                   -bb build/rpmbuild/SPECS/epp-client.spec
+
+      - name: Upload RPM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: epp-client-rpm
+          path: build/rpmbuild/RPMS/**/*.rpm
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download RPM artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: epp-client-rpm
+          path: ./rpm
+
+      - name: List files
+        run: find ./rpm -type f
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0-build${{ github.run_number }}
+          name: EPP Client v1.0.0 (Build ${{ github.run_number }})
+          files: ./rpm/**/*.rpm
+          draft: false
+          prerelease: false
