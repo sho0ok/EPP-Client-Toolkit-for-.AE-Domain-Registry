@@ -202,8 +202,9 @@ class EPPConnection:
             context.verify_mode = ssl.CERT_REQUIRED
             context.check_hostname = True
         else:
-            context.verify_mode = ssl.CERT_NONE
+            # Must set check_hostname to False BEFORE setting verify_mode to CERT_NONE
             context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
 
         # Load CA certificates
         if self.ca_file:
