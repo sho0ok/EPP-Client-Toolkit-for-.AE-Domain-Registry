@@ -1,0 +1,5 @@
+#!/bin/bash
+# EPP Client CLI wrapper
+
+export PYTHONPATH="/opt/epp-client/src:$PYTHONPATH"
+exec /opt/epp-client/venv/bin/python -m epp_cli.main "$@"

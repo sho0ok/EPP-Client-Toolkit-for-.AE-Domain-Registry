@@ -32,14 +32,14 @@ jobs:
         run: |
           cp -r src/* build/rpmbuild/SOURCES/src/
           cp build/rpm/SOURCES/config/client.yaml build/rpmbuild/SOURCES/config/
-          cp build/rpm/SCRIPTS/epp build/rpmbuild/SOURCES/scripts/
+          cp build/rpm/SOURCES/scripts/epp build/rpmbuild/SOURCES/scripts/
 
       - name: Create virtual environment with dependencies
         run: |
           python3 -m venv build/rpmbuild/SOURCES/venv
           source build/rpmbuild/SOURCES/venv/bin/activate
           pip install --upgrade pip wheel
-          pip install lxml cryptography pyyaml python-dateutil
+          pip install click lxml cryptography pyyaml python-dateutil
           deactivate
 
           # Fix venv paths to target location (/opt/epp-client/venv)
