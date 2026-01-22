@@ -43,8 +43,8 @@ class EPPXMLError(EPPError):
 class EPPAuthenticationError(EPPError):
     """Authentication failed (2200)."""
 
-    def __init__(self, message: str = "Authentication error"):
-        super().__init__(message, code=2200)
+    def __init__(self, message: str = "Authentication error", code: int = 2200):
+        super().__init__(message, code=code)
 
 
 class EPPAuthorizationError(EPPError):
@@ -71,23 +71,15 @@ class EPPCommandError(EPPError):
 class EPPObjectNotFound(EPPCommandError):
     """Object does not exist (2303)."""
 
-    def __init__(self, object_type: str, identifier: str):
-        super().__init__(
-            message="Object does not exist",
-            code=2303,
-            reason=f"{object_type} '{identifier}' not found"
-        )
+    def __init__(self, message: str = "Object does not exist", code: int = 2303):
+        super().__init__(message=message, code=code)
 
 
 class EPPObjectExists(EPPCommandError):
     """Object already exists (2302)."""
 
-    def __init__(self, object_type: str, identifier: str):
-        super().__init__(
-            message="Object exists",
-            code=2302,
-            reason=f"{object_type} '{identifier}' already exists"
-        )
+    def __init__(self, message: str = "Object exists", code: int = 2302):
+        super().__init__(message=message, code=code)
 
 
 class EPPParameterError(EPPCommandError):
