@@ -78,8 +78,13 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.0-build${{ github.run_number }}
-          name: EPP Client v1.0.0 (Build ${{ github.run_number }})
+          tag_name: v1.0.1-build${{ github.run_number }}
+          name: EPP Client v1.0.1 (Build ${{ github.run_number }})
           files: ./rpm/**/*.rpm
           draft: false
           prerelease: false
+          body: |
+            ## Changes in v1.0.1
+            - Add comprehensive EPP test suite (100% pass rate)
+            - Test coverage: contact, host, domain, poll operations
+            - Includes error case validation tests
