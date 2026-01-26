@@ -1,5 +1,5 @@
 Name:           epp-client
-Version:        1.0.0
+Version:        1.0.1
 Release:        1%{?dist}
 Summary:        EPP Client Toolkit for .AE Domain Registry
 License:        MIT
@@ -60,6 +60,11 @@ echo "   epp --help"
 echo ""
 
 %changelog
+* Mon Jan 27 2025 AE Registry <support@aeda.ae> - 1.0.1-1
+- Add comprehensive EPP test suite (100% pass rate)
+- Test coverage: contact, host, domain, poll operations
+- Includes error case validation tests
+
 * Tue Jan 21 2025 AE Registry <support@aeda.ae> - 1.0.0-1
 - Initial RPM release
 - Full EPP RFC 5730-5734 support
