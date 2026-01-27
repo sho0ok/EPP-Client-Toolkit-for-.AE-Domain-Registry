@@ -177,6 +177,33 @@ class ContactCheckResult:
 
 
 @dataclass
+class ContactTransferResult:
+    """
+    Contact transfer response per RFC 5733.
+
+    Attributes:
+        id: Contact identifier
+        tr_status: Transfer status - one of:
+            - pending: Transfer pending approval
+            - clientApproved: Approved by current registrar
+            - clientRejected: Rejected by current registrar
+            - clientCancelled: Cancelled by requesting registrar
+            - serverApproved: Auto-approved by server
+            - serverCancelled: Cancelled by server
+        re_id: Requesting registrar client ID
+        re_date: Date/time transfer was requested
+        ac_id: Acting registrar client ID (current sponsor)
+        ac_date: Date/time of required or completed action
+    """
+    id: str
+    tr_status: str
+    re_id: str
+    re_date: datetime
+    ac_id: str
+    ac_date: datetime
+
+
+@dataclass
 class PostalInfoData:
     """Contact postal information."""
     type: str  # int or loc
@@ -394,3 +421,301 @@ class HostUpdate:
     add_status: List[str] = field(default_factory=list)
     rem_status: List[str] = field(default_factory=list)
     new_name: Optional[str] = None
+
+
+# =============================================================================
+# AE Extension Models
+# =============================================================================
+
+@dataclass
+class AETransferRegistrantResult:
+    """
+    AE registrant transfer response.
+
+    Returned by aeext:command/registrantTransfer when transferring
+    domain to a new legal entity.
+
+    Attributes:
+        name: Domain name that was transferred
+        ex_date: New expiration date
+    """
+    name: str
+    ex_date: datetime
+
+
+@dataclass
+class AEPropertiesInfo:
+    """
+    AE extension properties from domain:info response.
+
+    Per aeext-1.0.xsd, contains:
+    - registrantName: Legal name of registrant
+    - registrantID + type: Optional registrant ID
+    - eligibilityType: Type of eligibility
+    - eligibilityName: Optional eligibility name
+    - eligibilityID + type: Optional eligibility ID
+    - policyReason: Optional policy reason (1-99)
+    """
+    registrant_name: str
+    eligibility_type: str
+    registrant_id: Optional[str] = None
+    registrant_id_type: Optional[str] = None
+    eligibility_name: Optional[str] = None
+    eligibility_id: Optional[str] = None
+    eligibility_id_type: Optional[str] = None
+    policy_reason: Optional[int] = None
+
+
+# =============================================================================
+# AR Extension Models
+# =============================================================================
+
+@dataclass
+class ARUndeleteResult:
+    """
+    AR undelete response.
+
+    Returned by arext:command/undelete when restoring a deleted domain.
+
+    Attributes:
+        name: Domain name that was restored
+    """
+    name: str
+
+
+@dataclass
+class ARUnrenewResult:
+    """
+    AR unrenew response.
+
+    Returned by arext:command/unrenew when cancelling a pending renewal.
+
+    Attributes:
+        name: Domain name
+        ex_date: Reverted expiration date
+    """
+    name: str
+    ex_date: datetime
+
+
+# =============================================================================
+# AU Extension Models
+# =============================================================================
+
+@dataclass
+class AUTransferRegistrantResult:
+    """
+    AU registrant transfer response.
+
+    Returned by auext:command/registrantTransfer when transferring
+    domain to a new legal entity.
+
+    Attributes:
+        name: Domain name that was transferred
+        ex_date: New expiration date
+    """
+    name: str
+    ex_date: datetime
+
+
+@dataclass
+class AUPropertiesInfo:
+    """
+    AU extension properties from domain:info response.
+
+    Per auext-1.1.xsd, contains:
+    - registrantName: Legal name of registrant (required)
+    - registrantID + type: Optional registrant ID
+    - eligibilityType: Type of eligibility (required)
+    - eligibilityName: Optional eligibility name
+    - eligibilityID + type: Optional eligibility ID
+    - policyReason: Policy reason (1-106, required)
+    """
+    registrant_name: str
+    eligibility_type: str
+    policy_reason: int
+    registrant_id: Optional[str] = None
+    registrant_id_type: Optional[str] = None
+    eligibility_name: Optional[str] = None
+    eligibility_id: Optional[str] = None
+    eligibility_id_type: Optional[str] = None
+
+
+# =============================================================================
+# E.164/ENUM Extension Models
+# =============================================================================
+
+@dataclass
+class NAPTRRecord:
+    """
+    NAPTR record for E.164/ENUM domains.
+
+    Per RFC 4114 (e164epp-1.0.xsd), NAPTR records contain:
+    - order: Unsigned short, lower values processed first
+    - pref: Preference, used to break ties when order is equal
+    - flags: Single character flag (e.g., 'u' for terminal rule)
+    - svc: Service field (e.g., 'E2U+sip' for SIP)
+    - regex: Regular expression for URI transformation
+    - repl: Replacement domain name
+
+    Common service types:
+    - E2U+sip: SIP URI
+    - E2U+tel: Tel URI
+    - E2U+mailto: Email URI
+    - E2U+http: HTTP URI
+    - E2U+fax:tel: Fax over PSTN
+    - E2U+voice:tel: Voice over PSTN
+
+    Example:
+        NAPTRRecord(
+            order=100,
+            pref=10,
+            flags="u",
+            svc="E2U+sip",
+            regex="!^.*$!sip:info@example.com!"
+        )
+    """
+    order: int
+    pref: int
+    svc: str
+    flags: Optional[str] = None
+    regex: Optional[str] = None
+    repl: Optional[str] = None
+
+
+@dataclass
+class E164InfoData:
+    """
+    E.164/ENUM extension data from domain:info response.
+
+    Contains NAPTR records associated with an ENUM domain.
+    """
+    naptr_records: List[NAPTRRecord] = field(default_factory=list)
+
+
+# =============================================================================
+# secDNS (DNSSEC) Extension Models
+# =============================================================================
+
+@dataclass
+class KeyData:
+    """
+    DNSSEC Key record (DNSKEY).
+
+    Attributes:
+        flags: Key flags (256=ZSK, 257=KSK)
+        protocol: Always 3 for DNSSEC
+        alg: Algorithm number (8=RSA/SHA-256, 13=ECDSA P-256, etc.)
+        pub_key: Base64-encoded public key
+    """
+    flags: int
+    protocol: int
+    alg: int
+    pub_key: str
+
+
+@dataclass
+class DSData:
+    """
+    DNSSEC Delegation Signer record.
+
+    Attributes:
+        key_tag: Key tag (0-65535)
+        alg: Algorithm number
+        digest_type: Digest type (1=SHA-1, 2=SHA-256, 4=SHA-384)
+        digest: Hex-encoded digest
+        key_data: Optional associated DNSKEY
+    """
+    key_tag: int
+    alg: int
+    digest_type: int
+    digest: str
+    key_data: Optional[KeyData] = None
+
+
+@dataclass
+class SecDNSInfo:
+    """
+    DNSSEC extension data from domain:info response.
+
+    Contains DS and/or Key records for domain DNSSEC.
+    """
+    ds_data: List[DSData] = field(default_factory=list)
+    key_data: List[KeyData] = field(default_factory=list)
+    max_sig_life: Optional[int] = None
+
+
+# =============================================================================
+# IDN Extension Models
+# =============================================================================
+
+@dataclass
+class IDNData:
+    """
+    Internationalized Domain Name data.
+
+    Attributes:
+        user_form: Unicode representation (e.g., "مثال.ae")
+        dns_form: ACE/Punycode form (e.g., "xn--mgbh0fb.ae")
+        language: BCP 47 language tag (e.g., "ar")
+        canonical_form: Server's canonical form (from response)
+    """
+    user_form: str
+    language: str
+    dns_form: Optional[str] = None
+    canonical_form: Optional[str] = None
+
+
+# =============================================================================
+# Variant Extension Models
+# =============================================================================
+
+@dataclass
+class DomainVariant:
+    """
+    Domain variant representation.
+
+    Attributes:
+        name: DNS form of variant (Punycode)
+        user_form: User-readable form (Unicode)
+    """
+    name: str
+    user_form: str
+
+
+@dataclass
+class VariantInfo:
+    """
+    Variant extension data from domain:info response.
+
+    Contains list of domain variants.
+    """
+    variants: List[DomainVariant] = field(default_factory=list)
+
+
+# =============================================================================
+# KV Extension Models
+# =============================================================================
+
+@dataclass
+class KVItem:
+    """Key-value item."""
+    key: str
+    value: str
+
+
+@dataclass
+class KVList:
+    """Named list of key-value items."""
+    name: str
+    items: List[KVItem] = field(default_factory=list)
+
+
+@dataclass
+class KVInfo:
+    """
+    KV extension data from domain:info response.
+
+    Contains named key-value lists.
+    """
+    kvlists: List[KVList] = field(default_factory=list)

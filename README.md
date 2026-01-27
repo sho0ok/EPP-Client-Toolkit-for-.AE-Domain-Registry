@@ -2,6 +2,13 @@
 
 A production-ready EPP client for .AE domain registrars. Provides CLI tool and Python library.
 
+## Features
+
+- **Core EPP**: Domain, Contact, Host operations (RFC 5731-5733)
+- **Extensions**: AE/AR/AU eligibility, ENUM/E.164, IDN, Variants, Key-Value metadata
+- **CLI**: Full command-line interface for all operations
+- **Async Support**: Connection pooling for high-throughput
+
 ## Requirements
 
 - RHEL 9+ (Rocky Linux 9, AlmaLinux 9)

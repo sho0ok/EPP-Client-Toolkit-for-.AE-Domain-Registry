@@ -7,7 +7,7 @@ High-level EPP client for domain registry operations.
 import logging
 import secrets
 import string
-from typing import List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from epp_client.connection import EPPConnection
 from epp_client.exceptions import (
@@ -19,10 +19,17 @@ from epp_client.exceptions import (
 )
 from epp_client.models import (
     AEEligibility,
+    AEPropertiesInfo,
+    AETransferRegistrantResult,
+    ARUndeleteResult,
+    ARUnrenewResult,
+    AUPropertiesInfo,
+    AUTransferRegistrantResult,
     ContactCheckResult,
     ContactCreate,
     ContactCreateResult,
     ContactInfo,
+    ContactTransferResult,
     ContactUpdate,
     DomainCheckResult,
     DomainCreate,
@@ -31,6 +38,7 @@ from epp_client.models import (
     DomainRenewResult,
     DomainTransferResult,
     DomainUpdate,
+    E164InfoData,
     EPPResponse,
     Greeting,
     HostCheckResult,
@@ -38,8 +46,19 @@ from epp_client.models import (
     HostCreateResult,
     HostInfo,
     HostUpdate,
+    NAPTRRecord,
     PollMessage,
     StatusValue,
+    # Phase 7-11 extension models
+    DSData,
+    KeyData,
+    SecDNSInfo,
+    IDNData,
+    DomainVariant,
+    VariantInfo,
+    KVItem,
+    KVList,
+    KVInfo,
 )
 from epp_client.xml_builder import XMLBuilder
 from epp_client.xml_parser import XMLParser
@@ -967,6 +986,66 @@ class EPPClient:
 
         return self._check_response(response)
 
+    def contact_transfer(
+        self,
+        contact_id: str,
+        op: str = "request",
+        auth_info: str = None,
+    ) -> "ContactTransferResult":
+        """
+        Transfer a contact between registrars.
+
+        Per RFC 5733, contact transfer supports five operations:
+        - request: Request transfer to new registrar (requires auth_info)
+        - approve: Approve incoming transfer (current registrar)
+        - reject: Reject incoming transfer (current registrar)
+        - cancel: Cancel outgoing transfer (requesting registrar)
+        - query: Query transfer status
+
+        Args:
+            contact_id: Contact identifier
+            op: Transfer operation (request/approve/reject/cancel/query)
+            auth_info: Authorization info (required for request)
+
+        Returns:
+            ContactTransferResult with transfer details
+
+        Raises:
+            EPPObjectNotFound: If contact not found
+            EPPAuthError: If auth info is invalid (request only)
+            EPPObjectPendingTransfer: If contact has pending transfer (request)
+            EPPObjectNotPendingTransfer: If no pending transfer (approve/reject/cancel)
+            EPPCommandError: If command fails
+
+        Examples:
+            # Request transfer
+            result = client.contact_transfer("sh8013", "request", "2fooBAR")
+            print(f"Status: {result.tr_status}")  # "pending"
+
+            # Query transfer status
+            result = client.contact_transfer("sh8013", "query")
+
+            # Approve transfer (must be current registrar)
+            result = client.contact_transfer("sh8013", "approve")
+
+            # Reject transfer (must be current registrar)
+            result = client.contact_transfer("sh8013", "reject")
+
+            # Cancel transfer (must be requesting registrar)
+            result = client.contact_transfer("sh8013", "cancel")
+        """
+        xml = XMLBuilder.build_contact_transfer(
+            contact_id=contact_id,
+            op=op,
+            auth_info=auth_info,
+            cl_trid=self._generate_cl_trid(),
+        )
+        response_xml = self._send_command(xml)
+        response = XMLParser.parse_response(response_xml)
+
+        self._check_response(response)
+        return XMLParser.parse_contact_transfer(response_xml)
+
     # =========================================================================
     # Host Commands
     # =========================================================================
@@ -1150,3 +1229,1063 @@ class EPPClient:
         response = XMLParser.parse_response(response_xml)
 
         return self._check_response(response)
+
+    # =========================================================================
+    # AE Extension Commands
+    # =========================================================================
+
+    def ae_modify_registrant(
+        self,
+        domain_name: str,
+        registrant_name: str,
+        explanation: str,
+        eligibility_type: str = None,
+        policy_reason: int = None,
+        registrant_id: str = None,
+        registrant_id_type: str = None,
+        eligibility_name: str = None,
+        eligibility_id: str = None,
+        eligibility_id_type: str = None,
+    ) -> EPPResponse:
+        """
+        Modify AE extension registrant data for a .ae domain.
+
+        This command corrects eligibility data where the legal registrant
+        has NOT changed. Use to fix incorrectly specified eligibility data.
+
+        Args:
+            domain_name: Domain name to modify
+            registrant_name: Legal name of registrant (required)
+            explanation: Reason for modification (required, max 1000 chars)
+            eligibility_type: Type of eligibility
+            policy_reason: Policy reason (1-99)
+            registrant_id: Registrant ID value
+            registrant_id_type: Registrant ID type (e.g., "Trade License")
+            eligibility_name: Eligibility name
+            eligibility_id: Eligibility ID value
+            eligibility_id_type: Eligibility ID type (e.g., "Trademark")
+
+        Returns:
+            EPP response
+
+        Raises:
+            EPPObjectNotFound: If domain not found
+            EPPAuthorizationError: If not sponsoring registrar
+            EPPCommandError: If command fails
+        """
+        xml = XMLBuilder.build_ae_modify_registrant(
+            domain_name=domain_name,
+            registrant_name=registrant_name,
+            explanation=explanation,
+            eligibility_type=eligibility_type,
+            policy_reason=policy_reason,
+            registrant_id=registrant_id,
+            registrant_id_type=registrant_id_type,
+            eligibility_name=eligibility_name,
+            eligibility_id=eligibility_id,
+            eligibility_id_type=eligibility_id_type,
+            cl_trid=self._generate_cl_trid(),
+        )
+        response_xml = self._send_command(xml)
+        response = XMLParser.parse_response(response_xml)
+
+        return self._check_response(response)
+
+    def ae_transfer_registrant(
+        self,
+        domain_name: str,
+        cur_exp_date: str,
+        registrant_name: str,
+        explanation: str,
+        eligibility_type: str,
+        policy_reason: int,
+        period: int = 1,
+        period_unit: str = "y",
+        registrant_id: str = None,
+        registrant_id_type: str = None,
+        eligibility_name: str = None,
+        eligibility_id: str = None,
+        eligibility_id_type: str = None,
+    ) -> AETransferRegistrantResult:
+        """
+        Transfer .ae domain to a new legal registrant entity.
+
+        This is a PROTOCOL EXTENSION command that changes legal ownership:
+        - Sets new validity period starting from transfer completion
+        - Charges create fee to the requesting client
+
+        Args:
+            domain_name: Domain name to transfer
+            cur_exp_date: Current expiry date (YYYY-MM-DD, prevents replay)
+            registrant_name: New legal registrant name (required)
+            explanation: Reason for transfer (required, max 1000 chars)
+            eligibility_type: Type of eligibility (required)
+            policy_reason: Policy reason (1-99, required)
+            period: Validity period (default 1)
+            period_unit: Period unit - 'y' for years, 'm' for months
+            registrant_id: Registrant ID value
+            registrant_id_type: Registrant ID type
+            eligibility_name: Eligibility name
+            eligibility_id: Eligibility ID value
+            eligibility_id_type: Eligibility ID type
+
+        Returns:
+            AETransferRegistrantResult with domain name and new expiry date
+
+        Raises:
+            EPPObjectNotFound: If domain not found
+            EPPAuthorizationError: If not sponsoring registrar
+            EPPBillingError: If insufficient balance
+            EPPCommandError: If command fails
+        """
+        xml = XMLBuilder.build_ae_transfer_registrant(
+            domain_name=domain_name,
+            cur_exp_date=cur_exp_date,
+            registrant_name=registrant_name,
+            explanation=explanation,
+            eligibility_type=eligibility_type,
+            policy_reason=policy_reason,
+            period=period,
+            period_unit=period_unit,
+            registrant_id=registrant_id,
+            registrant_id_type=registrant_id_type,
+            eligibility_name=eligibility_name,
+            eligibility_id=eligibility_id,
+            eligibility_id_type=eligibility_id_type,
+            cl_trid=self._generate_cl_trid(),
+        )
+        response_xml = self._send_command(xml)
+        response = XMLParser.parse_response(response_xml)
+
+        self._check_response(response)
+        return XMLParser.parse_ae_transfer_registrant(response_xml)
+
+    # =========================================================================
+    # AR Extension Commands
+    # =========================================================================
+
+    def ar_undelete(self, domain_name: str) -> ARUndeleteResult:
+        """
+        Restore a deleted domain from redemption grace period.
+
+        This is a PROTOCOL EXTENSION command that restores a domain
+        that is in pending delete / redemption status.
+
+        Args:
+            domain_name: Domain name to restore
+
+        Returns:
+            ARUndeleteResult with domain name
+
+        Raises:
+            EPPObjectNotFound: If domain not found
+            EPPAuthorizationError: If not sponsoring registrar
+            EPPCommandError: If command fails or domain not restorable
+        """
+        xml = XMLBuilder.build_ar_undelete(
+            domain_name=domain_name,
+            cl_trid=self._generate_cl_trid(),
+        )
+        response_xml = self._send_command(xml)
+        response = XMLParser.parse_response(response_xml)
+
+        self._check_response(response)
+        return XMLParser.parse_ar_undelete(response_xml)
+
+    def ar_unrenew(self, domain_name: str) -> ARUnrenewResult:
+        """
+        Cancel a pending domain renewal.
+
+        This is a PROTOCOL EXTENSION command that reverts a recent
+        renewal, restoring the previous expiry date.
+
+        Args:
+            domain_name: Domain name to unrenew
+
+        Returns:
+            ARUnrenewResult with domain name and reverted expiry date
+
+        Raises:
+            EPPObjectNotFound: If domain not found
+            EPPAuthorizationError: If not sponsoring registrar
+            EPPCommandError: If command fails or renewal not reversible
+        """
+        xml = XMLBuilder.build_ar_unrenew(
+            domain_name=domain_name,
+            cl_trid=self._generate_cl_trid(),
+        )
+        response_xml = self._send_command(xml)
+        response = XMLParser.parse_response(response_xml)
+
+        self._check_response(response)
+        return XMLParser.parse_ar_unrenew(response_xml)
+
+    def ar_policy_delete(
+        self,
+        domain_name: str,
+        reason: str = None,
+    ) -> EPPResponse:
+        """
+        Delete a domain due to policy violation.
+
+        This is a PROTOCOL EXTENSION command for registry-initiated
+        or policy-based domain deletion.
+
+        Args:
+            domain_name: Domain name to delete
+            reason: Reason for policy deletion
+
+        Returns:
+            EPP response
+
+        Raises:
+            EPPObjectNotFound: If domain not found
+            EPPCommandError: If command fails
+        """
+        xml = XMLBuilder.build_ar_policy_delete(
+            domain_name=domain_name,
+            reason=reason,
+            cl_trid=self._generate_cl_trid(),
+        )
+        response_xml = self._send_command(xml)
+        response = XMLParser.parse_response(response_xml)
+
+        return self._check_response(response)
+
+    # =========================================================================
+    # AU Extension Commands
+    # =========================================================================
+
+    def au_modify_registrant(
+        self,
+        domain_name: str,
+        registrant_name: str,
+        explanation: str,
+        eligibility_type: str,
+        policy_reason: int,
+        registrant_id: str = None,
+        registrant_id_type: str = None,
+        eligibility_name: str = None,
+        eligibility_id: str = None,
+        eligibility_id_type: str = None,
+    ) -> EPPResponse:
+        """
+        Modify AU extension registrant data for a .au domain.
+
+        This command corrects eligibility data where the legal registrant
+        has NOT changed. Use to fix incorrectly specified eligibility data.
+
+        Args:
+            domain_name: Domain name to modify
+            registrant_name: Legal name of registrant (required)
+            explanation: Reason for modification (required, max 1000 chars)
+            eligibility_type: Type of eligibility (required, e.g., "Company")
+            policy_reason: Policy reason (1-106, required)
+            registrant_id: Registrant ID value (e.g., ACN)
+            registrant_id_type: Registrant ID type (ACN, ABN, OTHER)
+            eligibility_name: Eligibility name
+            eligibility_id: Eligibility ID value
+            eligibility_id_type: Eligibility ID type (ACN, ABN, TM, etc.)
+
+        Returns:
+            EPP response
+
+        Raises:
+            EPPObjectNotFound: If domain not found
+            EPPAuthorizationError: If not sponsoring registrar
+            EPPCommandError: If command fails
+        """
+        xml = XMLBuilder.build_au_modify_registrant(
+            domain_name=domain_name,
+            registrant_name=registrant_name,
+            explanation=explanation,
+            eligibility_type=eligibility_type,
+            policy_reason=policy_reason,
+            registrant_id=registrant_id,
+            registrant_id_type=registrant_id_type,
+            eligibility_name=eligibility_name,
+            eligibility_id=eligibility_id,
+            eligibility_id_type=eligibility_id_type,
+            cl_trid=self._generate_cl_trid(),
+        )
+        response_xml = self._send_command(xml)
+        response = XMLParser.parse_response(response_xml)
+
+        return self._check_response(response)
+
+    def au_transfer_registrant(
+        self,
+        domain_name: str,
+        cur_exp_date: str,
+        registrant_name: str,
+        explanation: str,
+        eligibility_type: str,
+        policy_reason: int,
+        period: int = 1,
+        period_unit: str = "y",
+        registrant_id: str = None,
+        registrant_id_type: str = None,
+        eligibility_name: str = None,
+        eligibility_id: str = None,
+        eligibility_id_type: str = None,
+    ) -> AUTransferRegistrantResult:
+        """
+        Transfer .au domain to a new legal registrant entity.
+
+        This is a PROTOCOL EXTENSION command that changes legal ownership:
+        - Sets new validity period starting from transfer completion
+        - Charges create fee to the requesting client
+
+        Args:
+            domain_name: Domain name to transfer
+            cur_exp_date: Current expiry date (YYYY-MM-DD, prevents replay)
+            registrant_name: New legal registrant name (required)
+            explanation: Reason for transfer (required, max 1000 chars)
+            eligibility_type: Type of eligibility (required)
+            policy_reason: Policy reason (1-106, required)
+            period: Validity period (default 1)
+            period_unit: Period unit - 'y' for years, 'm' for months
+            registrant_id: Registrant ID value
+            registrant_id_type: Registrant ID type (ACN, ABN, OTHER)
+            eligibility_name: Eligibility name
+            eligibility_id: Eligibility ID value
+            eligibility_id_type: Eligibility ID type
+
+        Returns:
+            AUTransferRegistrantResult with domain name and new expiry date
+
+        Raises:
+            EPPObjectNotFound: If domain not found
+            EPPAuthorizationError: If not sponsoring registrar
+            EPPBillingError: If insufficient balance
+            EPPCommandError: If command fails
+        """
+        xml = XMLBuilder.build_au_transfer_registrant(
+            domain_name=domain_name,
+            cur_exp_date=cur_exp_date,
+            registrant_name=registrant_name,
+            explanation=explanation,
+            eligibility_type=eligibility_type,
+            policy_reason=policy_reason,
+            period=period,
+            period_unit=period_unit,
+            registrant_id=registrant_id,
+            registrant_id_type=registrant_id_type,
+            eligibility_name=eligibility_name,
+            eligibility_id=eligibility_id,
+            eligibility_id_type=eligibility_id_type,
+            cl_trid=self._generate_cl_trid(),
+        )
+        response_xml = self._send_command(xml)
+        response = XMLParser.parse_response(response_xml)
+
+        self._check_response(response)
+        return XMLParser.parse_au_transfer_registrant(response_xml)
+
+    # =========================================================================
+    # E.164/ENUM Extension Commands
+    # =========================================================================
+
+    def enum_domain_create(
+        self,
+        name: str,
+        registrant: str,
+        naptr_records: List[Dict[str, Any]],
+        period: int = 1,
+        period_unit: str = "y",
+        admin: str = None,
+        tech: str = None,
+        billing: str = None,
+        nameservers: List[str] = None,
+        auth_info: str = None,
+    ) -> DomainCreateResult:
+        """
+        Create an ENUM domain with NAPTR records.
+
+        ENUM (E.164 NUmber Mapping) domains map telephone numbers to
+        internet services via NAPTR DNS records.
+
+        Args:
+            name: ENUM domain name (e.g., 1.2.3.4.5.6.7.8.9.0.9.4.e164.arpa)
+            registrant: Registrant contact ID
+            naptr_records: List of NAPTR record dicts with keys:
+                - order: int (required) - lower values processed first
+                - pref: int (required) - preference, breaks ties
+                - flags: str (optional) - single char, e.g., 'u' for terminal
+                - svc: str (required) - service, e.g., 'E2U+sip'
+                - regex: str (optional) - URI transformation regex
+                - repl: str (optional) - replacement domain
+            period: Registration period (default 1)
+            period_unit: Period unit - 'y' for years, 'm' for months
+            admin: Admin contact ID
+            tech: Tech contact ID
+            billing: Billing contact ID
+            nameservers: List of nameserver hostnames
+            auth_info: Auth info (auto-generated if not provided)
+
+        Returns:
+            DomainCreateResult
+
+        Raises:
+            EPPObjectExists: If domain already exists
+            EPPCommandError: If command fails
+
+        Example:
+            # Create ENUM domain with SIP and email NAPTR records
+            result = client.enum_domain_create(
+                name="1.2.3.4.5.6.7.8.9.0.9.4.e164.arpa",
+                registrant="contact123",
+                naptr_records=[
+                    {"order": 100, "pref": 10, "flags": "u",
+                     "svc": "E2U+sip", "regex": "!^.*$!sip:user@example.com!"},
+                    {"order": 100, "pref": 20, "flags": "u",
+                     "svc": "E2U+mailto", "regex": "!^.*$!mailto:user@example.com!"},
+                ]
+            )
+        """
+        if auth_info is None:
+            auth_info = self._generate_auth_info()
+
+        xml = XMLBuilder.build_domain_create_with_e164(
+            domain_name=name,
+            registrant=registrant,
+            naptr_records=naptr_records,
+            period=period,
+            period_unit=period_unit,
+            admin=admin,
+            tech=tech,
+            billing=billing,
+            nameservers=nameservers or [],
+            auth_info=auth_info,
+            cl_trid=self._generate_cl_trid(),
+        )
+        response_xml = self._send_command(xml)
+        response = XMLParser.parse_response(response_xml)
+
+        self._check_response(response)
+        return XMLParser.parse_domain_create(response_xml)
+
+    def enum_domain_update(
+        self,
+        name: str,
+        add_naptr: List[Dict[str, Any]] = None,
+        rem_naptr: List[Dict[str, Any]] = None,
+        add_ns: List[str] = None,
+        rem_ns: List[str] = None,
+        add_status: List[str] = None,
+        rem_status: List[str] = None,
+        new_registrant: str = None,
+        new_auth_info: str = None,
+    ) -> EPPResponse:
+        """
+        Update an ENUM domain with NAPTR record changes.
+
+        Args:
+            name: ENUM domain name
+            add_naptr: NAPTR records to add
+            rem_naptr: NAPTR records to remove
+            add_ns: Nameservers to add
+            rem_ns: Nameservers to remove
+            add_status: Status values to add
+            rem_status: Status values to remove
+            new_registrant: New registrant contact ID
+            new_auth_info: New auth info password
+
+        Returns:
+            EPP response
+
+        Raises:
+            EPPObjectNotFound: If domain not found
+            EPPCommandError: If command fails
+
+        Example:
+            # Add a new SIP NAPTR record
+            client.enum_domain_update(
+                name="1.2.3.4.5.6.7.8.9.0.9.4.e164.arpa",
+                add_naptr=[
+                    {"order": 100, "pref": 5, "flags": "u",
+                     "svc": "E2U+sip", "regex": "!^.*$!sip:new@example.com!"}
+                ]
+            )
+        """
+        xml = XMLBuilder.build_domain_update_with_e164(
+            domain_name=name,
+            add_naptr=add_naptr,
+            rem_naptr=rem_naptr,
+            add_ns=add_ns,
+            rem_ns=rem_ns,
+            add_status=add_status,
+            rem_status=rem_status,
+            new_registrant=new_registrant,
+            new_auth_info=new_auth_info,
+            cl_trid=self._generate_cl_trid(),
+        )
+        response_xml = self._send_command(xml)
+        response = XMLParser.parse_response(response_xml)
+
+        return self._check_response(response)
+
+    def enum_domain_info(
+        self,
+        name: str,
+        auth_info: str = None,
+        hosts: str = "all",
+    ) -> Tuple[DomainInfo, Optional[E164InfoData]]:
+        """
+        Get ENUM domain information including NAPTR records.
+
+        Args:
+            name: ENUM domain name
+            auth_info: Optional auth info for transfer query
+            hosts: Host info to return: all, del, sub, none
+
+        Returns:
+            Tuple of (DomainInfo, E164InfoData or None)
+
+        Raises:
+            EPPObjectNotFound: If domain not found
+            EPPCommandError: If command fails
+
+        Example:
+            domain_info, e164_info = client.enum_domain_info(
+                "1.2.3.4.5.6.7.8.9.0.9.4.e164.arpa"
+            )
+            if e164_info:
+                for record in e164_info.naptr_records:
+                    print(f"Order: {record.order}, Service: {record.svc}")
+        """
+        xml = XMLBuilder.build_domain_info(
+            name=name,
+            auth_info=auth_info,
+            hosts=hosts,
+            cl_trid=self._generate_cl_trid(),
+        )
+        response_xml = self._send_command(xml)
+        response = XMLParser.parse_response(response_xml)
+
+        self._check_response(response)
+
+        domain_info = XMLParser.parse_domain_info(response_xml)
+        e164_info = XMLParser.parse_e164_info_extension(response_xml)
+
+        return domain_info, e164_info
+
+    # =========================================================================
+    # Phase 7: secDNS (DNSSEC) Extension Commands
+    # =========================================================================
+
+    def domain_create_with_secdns(
+        self,
+        name: str,
+        registrant: str,
+        ds_data: List[Dict[str, Any]] = None,
+        key_data: List[Dict[str, Any]] = None,
+        max_sig_life: int = None,
+        period: int = 1,
+        period_unit: str = "y",
+        admin: str = None,
+        tech: str = None,
+        billing: str = None,
+        nameservers: List[str] = None,
+        auth_info: str = None,
+    ) -> DomainCreateResult:
+        """
+        Create a domain with DNSSEC data.
+
+        Args:
+            name: Domain name
+            registrant: Registrant contact ID
+            ds_data: List of DS records, each dict with keys:
+                - key_tag: int (0-65535)
+                - alg: int (algorithm number)
+                - digest_type: int (1=SHA-1, 2=SHA-256, 4=SHA-384)
+                - digest: str (hex-encoded digest)
+                - key_data: optional dict with flags, protocol, alg, pub_key
+            key_data: List of Key records, each dict with keys:
+                - flags: int (256=ZSK, 257=KSK)
+                - protocol: int (always 3)
+                - alg: int (algorithm number)
+                - pub_key: str (base64-encoded public key)
+            max_sig_life: Maximum signature lifetime in seconds
+            period: Registration period (default 1)
+            period_unit: Period unit - 'y' or 'm' (default: y)
+            admin: Admin contact ID
+            tech: Tech contact ID
+            billing: Billing contact ID
+            nameservers: List of nameserver hostnames
+            auth_info: Auth info (auto-generated if not provided)
+
+        Returns:
+            DomainCreateResult
+
+        Raises:
+            EPPObjectExists: If domain already exists
+            EPPCommandError: If command fails
+        """
+        if auth_info is None:
+            auth_info = self._generate_auth_info()
+
+        xml = XMLBuilder.build_domain_create_with_secdns(
+            domain_name=name,
+            registrant=registrant,
+            ds_data=ds_data,
+            key_data=key_data,
+            max_sig_life=max_sig_life,
+            period=period,
+            period_unit=period_unit,
+            admin=admin,
+            tech=tech,
+            billing=billing,
+            nameservers=nameservers or [],
+            auth_info=auth_info,
+            cl_trid=self._generate_cl_trid(),
+        )
+        response_xml = self._send_command(xml)
+        response = XMLParser.parse_response(response_xml)
+
+        self._check_response(response)
+        return XMLParser.parse_domain_create(response_xml)
+
+    def domain_update_secdns(
+        self,
+        name: str,
+        add_ds: List[Dict[str, Any]] = None,
+        rem_ds: List[Dict[str, Any]] = None,
+        add_key: List[Dict[str, Any]] = None,
+        rem_key: List[Dict[str, Any]] = None,
+        rem_all: bool = False,
+        new_max_sig_life: int = None,
+        urgent: bool = False,
+    ) -> EPPResponse:
+        """
+        Update DNSSEC data for a domain.
+
+        Args:
+            name: Domain name
+            add_ds: DS records to add
+            rem_ds: DS records to remove
+            add_key: Key records to add
+            rem_key: Key records to remove
+            rem_all: Remove all DNSSEC data
+            new_max_sig_life: New maximum signature lifetime
+            urgent: Request urgent processing
+
+        Returns:
+            EPP response
+
+        Raises:
+            EPPObjectNotFound: If domain not found
+            EPPCommandError: If command fails
+        """
+        xml = XMLBuilder.build_domain_update_secdns(
+            domain_name=name,
+            add_ds=add_ds,
+            rem_ds=rem_ds,
+            add_key=add_key,
+            rem_key=rem_key,
+            rem_all=rem_all,
+            new_max_sig_life=new_max_sig_life,
+            urgent=urgent,
+            cl_trid=self._generate_cl_trid(),
+        )
+        response_xml = self._send_command(xml)
+        response = XMLParser.parse_response(response_xml)
+
+        return self._check_response(response)
+
+    def domain_info_secdns(
+        self,
+        name: str,
+        auth_info: str = None,
+        hosts: str = "all",
+    ) -> Tuple[DomainInfo, Optional[SecDNSInfo]]:
+        """
+        Get domain info including DNSSEC data.
+
+        Args:
+            name: Domain name
+            auth_info: Optional auth info
+            hosts: Host info to return
+
+        Returns:
+            Tuple of (DomainInfo, SecDNSInfo or None)
+
+        Raises:
+            EPPObjectNotFound: If domain not found
+            EPPCommandError: If command fails
+        """
+        xml = XMLBuilder.build_domain_info(
+            name=name,
+            auth_info=auth_info,
+            hosts=hosts,
+            cl_trid=self._generate_cl_trid(),
+        )
+        response_xml = self._send_command(xml)
+        response = XMLParser.parse_response(response_xml)
+
+        self._check_response(response)
+
+        domain_info = XMLParser.parse_domain_info(response_xml)
+        secdns_info = XMLParser.parse_secdns_info_extension(response_xml)
+
+        return domain_info, secdns_info
+
+    # =========================================================================
+    # Phase 8: IDN Extension Commands
+    # =========================================================================
+
+    def domain_create_with_idn(
+        self,
+        name: str,
+        registrant: str,
+        user_form: str,
+        language: str,
+        period: int = 1,
+        period_unit: str = "y",
+        admin: str = None,
+        tech: str = None,
+        billing: str = None,
+        nameservers: List[str] = None,
+        auth_info: str = None,
+    ) -> Tuple[DomainCreateResult, Optional[IDNData]]:
+        """
+        Create an IDN domain with user form and language.
+
+        Args:
+            name: Domain name (DNS/ACE form, e.g., xn--mgbh0fb.ae)
+            registrant: Registrant contact ID
+            user_form: Unicode user form (e.g., مثال)
+            language: BCP 47 language tag (e.g., ar, zh, de)
+            period: Registration period (default 1)
+            period_unit: Period unit - 'y' or 'm' (default: y)
+            admin: Admin contact ID
+            tech: Tech contact ID
+            billing: Billing contact ID
+            nameservers: List of nameserver hostnames
+            auth_info: Auth info (auto-generated if not provided)
+
+        Returns:
+            Tuple of (DomainCreateResult, IDNData with canonical form)
+
+        Raises:
+            EPPObjectExists: If domain already exists
+            EPPCommandError: If command fails
+        """
+        if auth_info is None:
+            auth_info = self._generate_auth_info()
+
+        xml = XMLBuilder.build_domain_create_with_idn(
+            domain_name=name,
+            registrant=registrant,
+            user_form=user_form,
+            language=language,
+            period=period,
+            period_unit=period_unit,
+            admin=admin,
+            tech=tech,
+            billing=billing,
+            nameservers=nameservers or [],
+            auth_info=auth_info,
+            cl_trid=self._generate_cl_trid(),
+        )
+        response_xml = self._send_command(xml)
+        response = XMLParser.parse_response(response_xml)
+
+        self._check_response(response)
+
+        create_result = XMLParser.parse_domain_create(response_xml)
+        idn_data = XMLParser.parse_idn_create_extension(response_xml)
+
+        return create_result, idn_data
+
+    def domain_info_idn(
+        self,
+        name: str,
+        auth_info: str = None,
+        hosts: str = "all",
+    ) -> Tuple[DomainInfo, Optional[IDNData]]:
+        """
+        Get IDN domain info including user form and language.
+
+        Args:
+            name: Domain name
+            auth_info: Optional auth info
+            hosts: Host info to return
+
+        Returns:
+            Tuple of (DomainInfo, IDNData or None)
+
+        Raises:
+            EPPObjectNotFound: If domain not found
+            EPPCommandError: If command fails
+        """
+        xml = XMLBuilder.build_domain_info(
+            name=name,
+            auth_info=auth_info,
+            hosts=hosts,
+            cl_trid=self._generate_cl_trid(),
+        )
+        response_xml = self._send_command(xml)
+        response = XMLParser.parse_response(response_xml)
+
+        self._check_response(response)
+
+        domain_info = XMLParser.parse_domain_info(response_xml)
+        idn_info = XMLParser.parse_idn_info_extension(response_xml)
+
+        return domain_info, idn_info
+
+    # =========================================================================
+    # Phase 9: Variant Extension Commands
+    # =========================================================================
+
+    def domain_info_variants(
+        self,
+        name: str,
+        variants: str = "all",
+        auth_info: str = None,
+        hosts: str = "all",
+    ) -> Tuple[DomainInfo, Optional[VariantInfo]]:
+        """
+        Get domain info with variant information.
+
+        Args:
+            name: Domain name
+            variants: Variant query type: 'all' or 'none'
+            auth_info: Optional auth info
+            hosts: Host info to return
+
+        Returns:
+            Tuple of (DomainInfo, VariantInfo or None)
+
+        Raises:
+            EPPObjectNotFound: If domain not found
+            EPPCommandError: If command fails
+        """
+        xml = XMLBuilder.build_domain_info_with_variant(
+            domain_name=name,
+            variants=variants,
+            auth_info=auth_info,
+            hosts=hosts,
+            cl_trid=self._generate_cl_trid(),
+        )
+        response_xml = self._send_command(xml)
+        response = XMLParser.parse_response(response_xml)
+
+        self._check_response(response)
+
+        domain_info = XMLParser.parse_domain_info(response_xml)
+        variant_info = XMLParser.parse_variant_info_extension(response_xml)
+
+        return domain_info, variant_info
+
+    def domain_update_variants(
+        self,
+        name: str,
+        add_variants: List[Dict[str, str]] = None,
+        rem_variants: List[str] = None,
+    ) -> EPPResponse:
+        """
+        Update domain variants.
+
+        Args:
+            name: Domain name
+            add_variants: Variants to add, each dict with:
+                - name: DNS form of variant
+                - user_form: Unicode user form
+            rem_variants: Variant names to remove (DNS form)
+
+        Returns:
+            EPP response
+
+        Raises:
+            EPPObjectNotFound: If domain not found
+            EPPCommandError: If command fails
+        """
+        xml = XMLBuilder.build_domain_update_with_variant(
+            domain_name=name,
+            add_variants=add_variants,
+            rem_variants=rem_variants,
+            cl_trid=self._generate_cl_trid(),
+        )
+        response_xml = self._send_command(xml)
+        response = XMLParser.parse_response(response_xml)
+
+        return self._check_response(response)
+
+    # =========================================================================
+    # Phase 10: Sync Extension Commands
+    # =========================================================================
+
+    def domain_sync(
+        self,
+        name: str,
+        exp_date: str,
+    ) -> EPPResponse:
+        """
+        Synchronize domain expiry date.
+
+        Args:
+            name: Domain name
+            exp_date: Target expiry date (YYYY-MM-DDTHH:MM:SS.0Z)
+
+        Returns:
+            EPP response
+
+        Raises:
+            EPPObjectNotFound: If domain not found
+            EPPCommandError: If command fails
+        """
+        xml = XMLBuilder.build_domain_update_with_sync(
+            domain_name=name,
+            exp_date=exp_date,
+            cl_trid=self._generate_cl_trid(),
+        )
+        response_xml = self._send_command(xml)
+        response = XMLParser.parse_response(response_xml)
+
+        return self._check_response(response)
+
+    # =========================================================================
+    # Phase 11: KV Extension Commands
+    # =========================================================================
+
+    def domain_create_with_kv(
+        self,
+        name: str,
+        registrant: str,
+        kvlists: List[Dict[str, Any]],
+        period: int = 1,
+        period_unit: str = "y",
+        admin: str = None,
+        tech: str = None,
+        billing: str = None,
+        nameservers: List[str] = None,
+        auth_info: str = None,
+    ) -> DomainCreateResult:
+        """
+        Create a domain with key-value metadata.
+
+        Args:
+            name: Domain name
+            registrant: Registrant contact ID
+            kvlists: Key-value lists, each dict with:
+                - name: list name
+                - items: list of dicts with 'key' and 'value'
+            period: Registration period (default 1)
+            period_unit: Period unit (default: y)
+            admin: Admin contact ID
+            tech: Tech contact ID
+            billing: Billing contact ID
+            nameservers: List of nameserver hostnames
+            auth_info: Auth info (auto-generated if not provided)
+
+        Returns:
+            DomainCreateResult
+
+        Raises:
+            EPPObjectExists: If domain already exists
+            EPPCommandError: If command fails
+
+        Example:
+            result = client.domain_create_with_kv(
+                name="example.ae",
+                registrant="contact123",
+                kvlists=[
+                    {
+                        "name": "metadata",
+                        "items": [
+                            {"key": "category", "value": "premium"},
+                            {"key": "source", "value": "auction"}
+                        ]
+                    }
+                ]
+            )
+        """
+        if auth_info is None:
+            auth_info = self._generate_auth_info()
+
+        xml = XMLBuilder.build_domain_create_with_kv(
+            domain_name=name,
+            registrant=registrant,
+            kvlists=kvlists,
+            period=period,
+            period_unit=period_unit,
+            admin=admin,
+            tech=tech,
+            billing=billing,
+            nameservers=nameservers or [],
+            auth_info=auth_info,
+            cl_trid=self._generate_cl_trid(),
+        )
+        response_xml = self._send_command(xml)
+        response = XMLParser.parse_response(response_xml)
+
+        self._check_response(response)
+        return XMLParser.parse_domain_create(response_xml)
+
+    def domain_update_kv(
+        self,
+        name: str,
+        kvlists: List[Dict[str, Any]],
+    ) -> EPPResponse:
+        """
+        Update domain key-value metadata.
+
+        Args:
+            name: Domain name
+            kvlists: Key-value lists to set/update
+
+        Returns:
+            EPP response
+
+        Raises:
+            EPPObjectNotFound: If domain not found
+            EPPCommandError: If command fails
+        """
+        xml = XMLBuilder.build_domain_update_with_kv(
+            domain_name=name,
+            kvlists=kvlists,
+            cl_trid=self._generate_cl_trid(),
+        )
+        response_xml = self._send_command(xml)
+        response = XMLParser.parse_response(response_xml)
+
+        return self._check_response(response)
+
+    def domain_info_kv(
+        self,
+        name: str,
+        auth_info: str = None,
+        hosts: str = "all",
+    ) -> Tuple[DomainInfo, Optional[KVInfo]]:
+        """
+        Get domain info including key-value metadata.
+
+        Args:
+            name: Domain name
+            auth_info: Optional auth info
+            hosts: Host info to return
+
+        Returns:
+            Tuple of (DomainInfo, KVInfo or None)
+
+        Raises:
+            EPPObjectNotFound: If domain not found
+            EPPCommandError: If command fails
+        """
+        xml = XMLBuilder.build_domain_info(
+            name=name,
+            auth_info=auth_info,
+            hosts=hosts,
+            cl_trid=self._generate_cl_trid(),
+        )
+        response_xml = self._send_command(xml)
+        response = XMLParser.parse_response(response_xml)
+
+        self._check_response(response)
+
+        domain_info = XMLParser.parse_domain_info(response_xml)
+        kv_info = XMLParser.parse_kv_info_extension(response_xml)
+
+        return domain_info, kv_info
