@@ -14,9 +14,10 @@ import yaml
 
 # Default config locations
 DEFAULT_CONFIG_PATHS = [
+    Path("/etc/epp-client/client.yaml"),  # RPM installation path
+    Path("/etc/epp-client/client.yml"),
+    Path.home() / ".epp-client" / "client.yaml",
     Path.home() / ".epp" / "config.yaml",
-    Path.home() / ".epp" / "config.yml",
-    Path("/etc/epp/config.yaml"),
     Path("epp_config.yaml"),
 ]
 
@@ -154,45 +155,45 @@ def create_sample_config() -> str:
         Sample config as YAML string
     """
     return """# EPP Client Configuration
-# Copy to ~/.epp/config.yaml
+# Default location: /etc/epp-client/client.yaml (RPM install)
+# Alternative: ~/.epp-client/client.yaml (user install)
 
-# Default profile
 server:
-  host: epp.registry.ae
+  host: epp.aeda.ae
   port: 700
   timeout: 30
   verify_server: true
 
 certs:
-  cert_file: ~/.epp/client.crt
-  key_file: ~/.epp/client.key
-  ca_file: ~/.epp/ca.crt
+  cert_file: /etc/epp-client/tls/client.crt
+  key_file: /etc/epp-client/tls/client.key
+  ca_file: /etc/epp-client/tls/ca.crt
 
 credentials:
-  client_id: your_registrar_id
-  # password: your_password  # Optional, will prompt if not set
+  client_id: your-registrar-id
+  password: your-password
 
-# Multiple profiles example
+# Multiple profiles example (optional)
 profiles:
   production:
     server:
-      host: epp.registry.ae
+      host: epp.aeda.ae
       port: 700
     certs:
-      cert_file: ~/.epp/prod/client.crt
-      key_file: ~/.epp/prod/client.key
-      ca_file: ~/.epp/prod/ca.crt
+      cert_file: /etc/epp-client/tls/client.crt
+      key_file: /etc/epp-client/tls/client.key
+      ca_file: /etc/epp-client/tls/ca.crt
     credentials:
       client_id: prod_registrar
 
   ote:
     server:
-      host: epp-ote.registry.ae
+      host: epp-ote.aeda.ae
       port: 700
     certs:
-      cert_file: ~/.epp/ote/client.crt
-      key_file: ~/.epp/ote/client.key
-      ca_file: ~/.epp/ote/ca.crt
+      cert_file: /etc/epp-client/tls/ote-client.crt
+      key_file: /etc/epp-client/tls/ote-client.key
+      ca_file: /etc/epp-client/tls/ca.crt
     credentials:
       client_id: ote_registrar
 """

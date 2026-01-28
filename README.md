@@ -125,20 +125,33 @@ with client:
 server:
   host: "epp.aeda.ae"
   port: 700
+  timeout: 30
+  verify_server: true
 
-tls:
+certs:
   cert_file: /etc/epp-client/tls/client.crt
   key_file: /etc/epp-client/tls/client.key
   ca_file: /etc/epp-client/tls/ca.crt
-  verify: true
 
 credentials:
   client_id: "your-registrar-id"
   password: "your-password"
+```
 
-timeout:
-  connect: 30
-  read: 60
+### Alternative: Command Line Options
+
+You can also specify connection options directly on the command line:
+```bash
+epp --host epp.aeda.ae --cert /path/to/client.crt --key /path/to/client.key \
+    --client-id your-registrar-id --password your-password \
+    domain check example.ae
+```
+
+### Generate Sample Config
+
+```bash
+epp config init
+# Creates ~/.epp-client/client.yaml with sample configuration
 ```
 
 ## Documentation

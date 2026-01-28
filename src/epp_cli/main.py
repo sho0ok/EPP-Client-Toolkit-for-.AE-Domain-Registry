@@ -65,12 +65,13 @@ def cli(ctx, config, profile, host, port, cert, key, ca, client_id, password, ti
 
     \b
     Configuration:
-      Use a config file at ~/.epp/config.yaml or specify options on command line.
+      Use a config file at /etc/epp-client/client.yaml (RPM install) or
+      ~/.epp-client/client.yaml (user install), or specify options on command line.
       Run 'epp config init' to create a sample config file.
 
     \b
     Examples:
-      epp --host epp.registry.ae --cert client.crt --key client.key domain check example.ae
+      epp --host epp.aeda.ae --cert client.crt --key client.key domain check example.ae
       epp -c config.yaml domain info example.ae
       epp --profile production domain create example.ae --registrant contact123
     """
@@ -190,7 +191,7 @@ def config():
 
 
 @config.command("init")
-@click.option("--path", "-p", type=click.Path(), default="~/.epp/config.yaml", help="Config file path")
+@click.option("--path", "-p", type=click.Path(), default="~/.epp-client/client.yaml", help="Config file path")
 def config_init(path):
     """Create sample configuration file."""
     path = Path(path).expanduser()
