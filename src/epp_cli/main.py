@@ -2176,6 +2176,7 @@ def session(ctx, wait):
             time.sleep(min(10, remaining))
 
         print_info("Logging out...")
+        client.logout()
     finally:
         client.disconnect()
 
