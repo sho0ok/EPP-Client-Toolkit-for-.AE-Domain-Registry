@@ -2145,6 +2145,44 @@ def kv_set(ctx, domain_name, list_name, item):
 
 
 # =============================================================================
+# Session Test Command
+# =============================================================================
+
+@cli.command()
+@click.option("--wait", "-w", type=int, default=60, help="Seconds to wait before logout (default: 60)")
+@click.pass_context
+def session(ctx, wait):
+    """
+    Login and hold session open for testing.
+
+    This command logs in, keeps the session open for the specified
+    duration, then logs out. Use this to test Open Connections/Sessions
+    in the registry portal.
+
+    \b
+    Examples:
+      epp session           # Hold session for 60 seconds
+      epp session -w 120    # Hold session for 120 seconds
+    """
+    import time
+
+    client = get_client(ctx)
+    try:
+        print_success("Logged in! Session is open.")
+        print_info(f"Check the portal now. Waiting {wait} seconds...")
+
+        for remaining in range(wait, 0, -10):
+            print_info(f"  {remaining} seconds remaining...")
+            time.sleep(min(10, remaining))
+
+        print_info("Logging out...")
+    finally:
+        client.disconnect()
+
+    print_success("Session closed.")
+
+
+# =============================================================================
 # Entry Point
 # =============================================================================
 
