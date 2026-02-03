@@ -6,6 +6,7 @@ Command-line interface for EPP client operations.
 
 import getpass
 import logging
+import shlex
 import sys
 from pathlib import Path
 from typing import Optional
@@ -22,7 +23,8 @@ from epp_client.exceptions import (
     EPPObjectNotFound,
 )
 from epp_client.models import AEEligibility, StatusValue
-from epp_cli.config import CLIConfig, create_sample_config
+from epp_client.sync_pool import SyncEPPConnectionPool, SyncPoolConfig
+from epp_cli.config import CLIConfig, PoolSettingsConfig, create_sample_config
 from epp_cli.output import OutputFormatter, print_error, print_info, print_success
 
 
@@ -119,6 +121,9 @@ def cli(ctx, config, profile, host, port, cert, key, ca, client_id, password, ti
         import os
         final_password = os.environ.get("EPP_PASSWORD")
 
+    # Pool settings from config (or defaults)
+    pool_settings = loaded_config.pool if loaded_config else PoolSettingsConfig()
+
     # Store in context for subcommands
     ctx.ensure_object(dict)
     ctx.obj["host"] = final_host
@@ -130,6 +135,7 @@ def cli(ctx, config, profile, host, port, cert, key, ca, client_id, password, ti
     ctx.obj["password"] = final_password
     ctx.obj["timeout"] = final_timeout
     ctx.obj["verify"] = final_verify
+    ctx.obj["pool_settings"] = pool_settings
 
 
 def get_client(ctx) -> EPPClient:
@@ -2181,6 +2187,475 @@ def session(ctx, wait):
         client.disconnect()
 
     print_success("Session closed.")
+
+
+# =============================================================================
+# Shell (Interactive REPL) Command
+# =============================================================================
+
+@cli.command()
+@click.pass_context
+def shell(ctx):
+    """
+    Interactive EPP shell with persistent connection pool.
+
+    Login once and run multiple commands without reconnecting.
+    A background keep-alive thread keeps connections open.
+
+    \b
+    Shell commands:
+      domain check <name> [name ...]   Check domain availability
+      domain info <name>               Get domain information
+      domain create <name> ...         Create a domain (simplified)
+      domain delete <name>             Delete a domain
+      domain renew <name> ...          Renew a domain
+      contact check <id> [id ...]      Check contact availability
+      contact info <id>                Get contact information
+      host check <name> [name ...]     Check host availability
+      host info <name>                 Get host information
+      host create <name> ...           Create a host
+      poll request                     Get next poll message
+      poll ack <msg_id>                Acknowledge poll message
+      hello                            Send hello (test connection)
+      status                           Show pool statistics
+      help                             Show available commands
+      quit / exit                      Close connections and exit
+
+    \b
+    Examples:
+      epp shell
+      epp -c config.yaml shell
+      epp --profile ote shell
+    """
+    host = ctx.obj.get("host")
+    if not host:
+        print_error("No server host specified. Use --host or config file.")
+        sys.exit(1)
+
+    client_id = ctx.obj.get("client_id")
+    if not client_id:
+        print_error("No client ID specified. Use --client-id or config file.")
+        sys.exit(1)
+
+    password = ctx.obj.get("password")
+    if not password:
+        password = getpass.getpass("Password: ")
+
+    # Resolve pool settings from config or defaults
+    pool_settings = ctx.obj.get("pool_settings") or PoolSettingsConfig()
+
+    pool_config = SyncPoolConfig(
+        host=host,
+        port=ctx.obj.get("port", 700),
+        cert_file=ctx.obj.get("cert"),
+        key_file=ctx.obj.get("key"),
+        ca_file=ctx.obj.get("ca"),
+        timeout=ctx.obj.get("timeout", 30),
+        verify_server=ctx.obj.get("verify", True),
+        client_id=client_id,
+        password=password,
+        min_connections=pool_settings.min_connections,
+        max_connections=pool_settings.max_connections,
+        keepalive_interval=pool_settings.keepalive_interval,
+        command_retries=pool_settings.command_retries,
+    )
+
+    try:
+        pool = SyncEPPConnectionPool(pool_config)
+        pool.start()
+    except EPPConnectionError as e:
+        print_error(f"Connection failed: {e}")
+        sys.exit(1)
+    except EPPAuthenticationError as e:
+        print_error(f"Authentication failed: {e}")
+        sys.exit(1)
+
+    stats = pool.stats()
+    print_success(f"Connected! Pool: {stats['size']} connection(s)")
+    print_info(f"Keep-alive every {stats['keepalive_interval']}s")
+    print_info("Type 'help' for available commands, 'quit' to exit.\n")
+
+    try:
+        _shell_loop(pool, state.formatter)
+    finally:
+        pool.stop()
+        print_info("All connections closed.")
+
+
+def _shell_loop(pool: SyncEPPConnectionPool, formatter: OutputFormatter) -> None:
+    """Run the interactive REPL loop."""
+    while True:
+        try:
+            line = input("epp> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()  # newline after ^C / ^D
+            break
+
+        if not line:
+            continue
+
+        try:
+            parts = shlex.split(line)
+        except ValueError as e:
+            print_error(f"Invalid input: {e}")
+            continue
+
+        cmd = parts[0].lower()
+
+        if cmd in ("quit", "exit"):
+            break
+        elif cmd == "help":
+            _shell_help()
+        elif cmd == "status":
+            _shell_status(pool)
+        elif cmd == "hello":
+            _shell_hello(pool, formatter)
+        elif cmd == "domain":
+            _shell_domain(pool, formatter, parts[1:])
+        elif cmd == "contact":
+            _shell_contact(pool, formatter, parts[1:])
+        elif cmd == "host":
+            _shell_host(pool, formatter, parts[1:])
+        elif cmd == "poll":
+            _shell_poll(pool, formatter, parts[1:])
+        else:
+            print_error(f"Unknown command: {cmd}. Type 'help' for available commands.")
+
+
+def _shell_help() -> None:
+    """Display help for shell commands."""
+    help_text = """
+Available commands:
+  domain check <name> [name ...]   Check domain availability
+  domain info <name>               Get domain information
+  domain create <name> --registrant <id> [options]
+  domain delete <name>             Delete a domain
+  domain renew <name> --exp-date <date> [options]
+  contact check <id> [id ...]      Check contact availability
+  contact info <id>                Get contact information
+  host check <name> [name ...]     Check host availability
+  host info <name>                 Get host information
+  host create <name> [--ipv4 <ip>] [--ipv6 <ip>]
+  poll request                     Get next poll message
+  poll ack <msg_id>                Acknowledge poll message
+  hello                            Send hello (test connection)
+  status                           Show pool statistics
+  help                             Show this help
+  quit / exit                      Close connections and exit
+""".strip()
+    print(help_text)
+
+
+def _shell_status(pool: SyncEPPConnectionPool) -> None:
+    """Show pool statistics."""
+    stats = pool.stats()
+    print(f"Pool size:          {stats['size']}")
+    print(f"Available:          {stats['available']}")
+    print(f"In use:             {stats['in_use']}")
+    print(f"Min connections:    {stats['min_connections']}")
+    print(f"Max connections:    {stats['max_connections']}")
+    print(f"Keep-alive interval: {stats['keepalive_interval']}s")
+
+
+def _shell_hello(pool: SyncEPPConnectionPool, formatter: OutputFormatter) -> None:
+    """Send hello command through the pool."""
+    try:
+        result = pool.execute_with_retry(lambda c: c.hello())
+        formatter.output(result)
+    except EPPError as e:
+        print_error(f"Hello failed: {e}")
+
+
+# ---- Domain shell sub-commands ----
+
+def _shell_domain(pool: SyncEPPConnectionPool, formatter: OutputFormatter, args: list) -> None:
+    """Dispatch domain sub-commands."""
+    if not args:
+        print_error("Usage: domain <check|info|create|delete|renew> ...")
+        return
+
+    sub = args[0].lower()
+    rest = args[1:]
+
+    if sub == "check":
+        if not rest:
+            print_error("Usage: domain check <name> [name ...]")
+            return
+        try:
+            result = pool.execute_with_retry(lambda c: c.domain_check(rest))
+            formatter.output(result.results)
+        except EPPError as e:
+            print_error(f"Command failed: {e}")
+
+    elif sub == "info":
+        if not rest:
+            print_error("Usage: domain info <name>")
+            return
+        name = rest[0]
+        try:
+            result = pool.execute_with_retry(lambda c: c.domain_info(name))
+            formatter.output(result)
+        except EPPObjectNotFound:
+            print_error(f"Domain not found: {name}")
+        except EPPError as e:
+            print_error(f"Command failed: {e}")
+
+    elif sub == "create":
+        _shell_domain_create(pool, formatter, rest)
+
+    elif sub == "delete":
+        if not rest:
+            print_error("Usage: domain delete <name>")
+            return
+        name = rest[0]
+        try:
+            pool.execute_with_retry(lambda c: c.domain_delete(name))
+            print_success(f"Domain deleted: {name}")
+        except EPPObjectNotFound:
+            print_error(f"Domain not found: {name}")
+        except EPPError as e:
+            print_error(f"Command failed: {e}")
+
+    elif sub == "renew":
+        _shell_domain_renew(pool, formatter, rest)
+
+    else:
+        print_error(f"Unknown domain command: {sub}")
+
+
+def _shell_domain_create(pool: SyncEPPConnectionPool, formatter: OutputFormatter, args: list) -> None:
+    """Handle 'domain create' in shell."""
+    if not args:
+        print_error("Usage: domain create <name> --registrant <id> [--ns <ns>] [--period <n>]")
+        return
+
+    name = args[0]
+    registrant = None
+    ns_list = []
+    period = 1
+    auth_info = None
+
+    i = 1
+    while i < len(args):
+        if args[i] == "--registrant" and i + 1 < len(args):
+            registrant = args[i + 1]; i += 2
+        elif args[i] == "--ns" and i + 1 < len(args):
+            ns_list.append(args[i + 1]); i += 2
+        elif args[i] == "--period" and i + 1 < len(args):
+            period = int(args[i + 1]); i += 2
+        elif args[i] == "--auth-info" and i + 1 < len(args):
+            auth_info = args[i + 1]; i += 2
+        else:
+            print_error(f"Unknown option: {args[i]}")
+            return
+
+    if not registrant:
+        print_error("--registrant is required")
+        return
+
+    try:
+        result = pool.execute_with_retry(
+            lambda c: c.domain_create(
+                name=name,
+                registrant=registrant,
+                nameservers=ns_list or None,
+                period=period,
+                auth_info=auth_info,
+            )
+        )
+        formatter.output(result)
+        print_success(f"Domain created: {name}")
+    except EPPObjectExists:
+        print_error(f"Domain already exists: {name}")
+    except EPPError as e:
+        print_error(f"Command failed: {e}")
+
+
+def _shell_domain_renew(pool: SyncEPPConnectionPool, formatter: OutputFormatter, args: list) -> None:
+    """Handle 'domain renew' in shell."""
+    if not args:
+        print_error("Usage: domain renew <name> --exp-date <YYYY-MM-DD> [--period <n>]")
+        return
+
+    name = args[0]
+    exp_date = None
+    period = 1
+
+    i = 1
+    while i < len(args):
+        if args[i] == "--exp-date" and i + 1 < len(args):
+            exp_date = args[i + 1]; i += 2
+        elif args[i] == "--period" and i + 1 < len(args):
+            period = int(args[i + 1]); i += 2
+        else:
+            print_error(f"Unknown option: {args[i]}")
+            return
+
+    if not exp_date:
+        print_error("--exp-date is required")
+        return
+
+    try:
+        result = pool.execute_with_retry(
+            lambda c: c.domain_renew(name=name, cur_exp_date=exp_date, period=period)
+        )
+        formatter.output(result)
+        print_success(f"Domain renewed: {name}")
+    except EPPObjectNotFound:
+        print_error(f"Domain not found: {name}")
+    except EPPError as e:
+        print_error(f"Command failed: {e}")
+
+
+# ---- Contact shell sub-commands ----
+
+def _shell_contact(pool: SyncEPPConnectionPool, formatter: OutputFormatter, args: list) -> None:
+    """Dispatch contact sub-commands."""
+    if not args:
+        print_error("Usage: contact <check|info> ...")
+        return
+
+    sub = args[0].lower()
+    rest = args[1:]
+
+    if sub == "check":
+        if not rest:
+            print_error("Usage: contact check <id> [id ...]")
+            return
+        try:
+            result = pool.execute_with_retry(lambda c: c.contact_check(rest))
+            formatter.output(result.results)
+        except EPPError as e:
+            print_error(f"Command failed: {e}")
+
+    elif sub == "info":
+        if not rest:
+            print_error("Usage: contact info <id>")
+            return
+        contact_id = rest[0]
+        try:
+            result = pool.execute_with_retry(lambda c: c.contact_info(contact_id))
+            formatter.output(result)
+        except EPPObjectNotFound:
+            print_error(f"Contact not found: {contact_id}")
+        except EPPError as e:
+            print_error(f"Command failed: {e}")
+
+    else:
+        print_error(f"Unknown contact command: {sub}")
+
+
+# ---- Host shell sub-commands ----
+
+def _shell_host(pool: SyncEPPConnectionPool, formatter: OutputFormatter, args: list) -> None:
+    """Dispatch host sub-commands."""
+    if not args:
+        print_error("Usage: host <check|info|create> ...")
+        return
+
+    sub = args[0].lower()
+    rest = args[1:]
+
+    if sub == "check":
+        if not rest:
+            print_error("Usage: host check <name> [name ...]")
+            return
+        try:
+            result = pool.execute_with_retry(lambda c: c.host_check(rest))
+            formatter.output(result.results)
+        except EPPError as e:
+            print_error(f"Command failed: {e}")
+
+    elif sub == "info":
+        if not rest:
+            print_error("Usage: host info <name>")
+            return
+        host_name = rest[0]
+        try:
+            result = pool.execute_with_retry(lambda c: c.host_info(host_name))
+            formatter.output(result)
+        except EPPObjectNotFound:
+            print_error(f"Host not found: {host_name}")
+        except EPPError as e:
+            print_error(f"Command failed: {e}")
+
+    elif sub == "create":
+        _shell_host_create(pool, formatter, rest)
+
+    else:
+        print_error(f"Unknown host command: {sub}")
+
+
+def _shell_host_create(pool: SyncEPPConnectionPool, formatter: OutputFormatter, args: list) -> None:
+    """Handle 'host create' in shell."""
+    if not args:
+        print_error("Usage: host create <name> [--ipv4 <ip>] [--ipv6 <ip>]")
+        return
+
+    name = args[0]
+    ipv4_list = []
+    ipv6_list = []
+
+    i = 1
+    while i < len(args):
+        if args[i] in ("--ipv4", "--ip") and i + 1 < len(args):
+            ipv4_list.append(args[i + 1]); i += 2
+        elif args[i] == "--ipv6" and i + 1 < len(args):
+            ipv6_list.append(args[i + 1]); i += 2
+        else:
+            print_error(f"Unknown option: {args[i]}")
+            return
+
+    try:
+        result = pool.execute_with_retry(
+            lambda c: c.host_create(
+                name=name,
+                ipv4=ipv4_list or None,
+                ipv6=ipv6_list or None,
+            )
+        )
+        formatter.output(result)
+        print_success(f"Host created: {name}")
+    except EPPObjectExists:
+        print_error(f"Host already exists: {name}")
+    except EPPError as e:
+        print_error(f"Command failed: {e}")
+
+
+# ---- Poll shell sub-commands ----
+
+def _shell_poll(pool: SyncEPPConnectionPool, formatter: OutputFormatter, args: list) -> None:
+    """Dispatch poll sub-commands."""
+    if not args:
+        print_error("Usage: poll <request|ack> ...")
+        return
+
+    sub = args[0].lower()
+    rest = args[1:]
+
+    if sub == "request":
+        try:
+            result = pool.execute_with_retry(lambda c: c.poll_request())
+            if result:
+                formatter.output(result)
+            else:
+                print_info("No messages in queue")
+        except EPPError as e:
+            print_error(f"Command failed: {e}")
+
+    elif sub == "ack":
+        if not rest:
+            print_error("Usage: poll ack <msg_id>")
+            return
+        msg_id = rest[0]
+        try:
+            pool.execute_with_retry(lambda c: c.poll_ack(msg_id))
+            print_success(f"Message acknowledged: {msg_id}")
+        except EPPError as e:
+            print_error(f"Command failed: {e}")
+
+    else:
+        print_error(f"Unknown poll command: {sub}")
 
 
 # =============================================================================

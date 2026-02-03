@@ -47,11 +47,21 @@ class CredentialsConfig:
 
 
 @dataclass
+class PoolSettingsConfig:
+    """Connection pool configuration for shell mode."""
+    min_connections: int = 1
+    max_connections: int = 3
+    keepalive_interval: int = 600  # 40% of 25-min server timeout (ARI default)
+    command_retries: int = 3
+
+
+@dataclass
 class CLIConfig:
     """Complete CLI configuration."""
     server: ServerConfig
     certs: CertConfig = field(default_factory=CertConfig)
     credentials: CredentialsConfig = field(default_factory=CredentialsConfig)
+    pool: PoolSettingsConfig = field(default_factory=PoolSettingsConfig)
     profile: str = "default"
 
     @classmethod
@@ -99,10 +109,20 @@ class CLIConfig:
             password=creds_data.get("password"),
         )
 
+        # Pool settings
+        pool_data = profile_data.get("pool", {})
+        pool = PoolSettingsConfig(
+            min_connections=pool_data.get("min_connections", 1),
+            max_connections=pool_data.get("max_connections", 3),
+            keepalive_interval=pool_data.get("keepalive_interval", 600),
+            command_retries=pool_data.get("command_retries", 3),
+        )
+
         return cls(
             server=server,
             certs=certs,
             credentials=credentials,
+            pool=pool,
             profile=profile,
         )
 
@@ -172,6 +192,13 @@ certs:
 credentials:
   client_id: your-registrar-id
   password: your-password
+
+# Connection pool settings for shell mode (optional)
+pool:
+  min_connections: 1
+  max_connections: 3
+  keepalive_interval: 600   # seconds (40% of 25-min server timeout)
+  command_retries: 3
 
 # Multiple profiles example (optional)
 profiles:

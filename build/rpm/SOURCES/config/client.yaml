@@ -17,3 +17,10 @@ credentials:
 timeout:
   connect: 30
   read: 60
+
+# Connection pool settings for interactive shell mode (epp shell)
+pool:
+  min_connections: 1             # Minimum connections to maintain
+  max_connections: 3             # Maximum connections in pool
+  keepalive_interval: 600        # Keep-alive interval in seconds (40% of 25-min server timeout)
+  command_retries: 3             # Number of retries on connection failure

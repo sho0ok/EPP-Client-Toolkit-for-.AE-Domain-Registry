@@ -10,6 +10,7 @@ __version__ = "1.0.0"
 from epp_client.client import EPPClient
 from epp_client.async_client import AsyncEPPClient
 from epp_client.pool import EPPConnectionPool, PoolConfig, create_pool
+from epp_client.sync_pool import SyncEPPConnectionPool, SyncPoolConfig
 from epp_client.models import (
     AEEligibility,
     Greeting,
@@ -46,6 +47,9 @@ __all__ = [
     "EPPConnectionPool",
     "PoolConfig",
     "create_pool",
+    # Sync Pool
+    "SyncEPPConnectionPool",
+    "SyncPoolConfig",
     # Models
     "AEEligibility",
     "Greeting",
