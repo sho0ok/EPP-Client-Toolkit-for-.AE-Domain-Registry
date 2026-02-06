@@ -7,6 +7,7 @@ High-level EPP client for domain registry operations.
 import logging
 import secrets
 import string
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from epp_client.connection import EPPConnection
@@ -117,6 +118,7 @@ class EPPClient:
         client_id: str = None,
         password: str = None,
         auto_login: bool = False,
+        cl_trid_prefix: str = None,
     ):
         """
         Initialize EPP client.
@@ -132,6 +134,8 @@ class EPPClient:
             client_id: Client/registrar ID for auto-login
             password: Password for auto-login
             auto_login: If True, automatically login on connect
+            cl_trid_prefix: Prefix for auto-generated clTRID values.
+                           Defaults to client_id if set, otherwise 'EPP'.
         """
         self._connection = EPPConnection(
             host=host,
@@ -146,6 +150,7 @@ class EPPClient:
         self._client_id = client_id
         self._password = password
         self._auto_login = auto_login
+        self._cl_trid_prefix = cl_trid_prefix
 
         self._greeting: Optional[Greeting] = None
         self._logged_in = False
@@ -167,9 +172,19 @@ class EPPClient:
         return self._greeting
 
     def _generate_cl_trid(self) -> str:
-        """Generate unique client transaction ID."""
+        """
+        Generate unique client transaction ID.
+
+        Format: PREFIX.YYYYMMDD.HHMMSS.COUNTER
+        Example: MYREGISTRAR.20260206.143022.0
+
+        Matches ARI C++ toolkit convention per RFC 5730.
+        """
+        prefix = self._cl_trid_prefix or self._client_id or "EPP"
+        now = datetime.now()
+        counter = self._cl_trid_counter % 1000
         self._cl_trid_counter += 1
-        return f"CLI-{self._cl_trid_counter:06d}"
+        return f"{prefix}.{now:%Y%m%d}.{now:%H%M%S}.{counter}"
 
     def _resolve_cl_trid(self, cl_trid: Optional[str] = None) -> str:
         """Return custom cl_trid if provided, otherwise auto-generate one."""

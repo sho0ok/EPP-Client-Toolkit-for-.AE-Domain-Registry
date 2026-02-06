@@ -50,11 +50,15 @@ SYNC_NS = "urn:X-ar:params:xml:ns:sync-1.0"
 KV_NS = "urn:X-ar:params:xml:ns:kv-1.0"
 
 
+_cl_trid_counter = 0
+
 def _generate_cl_trid() -> str:
-    """Generate client transaction ID."""
-    chars = string.ascii_uppercase + string.digits
-    random_part = ''.join(secrets.choice(chars) for _ in range(8))
-    return f"CLI-{random_part}"
+    """Generate client transaction ID in ARI format: EPP.YYYYMMDD.HHMMSS.COUNTER"""
+    global _cl_trid_counter
+    now = datetime.now()
+    counter = _cl_trid_counter % 1000
+    _cl_trid_counter += 1
+    return f"EPP.{now:%Y%m%d}.{now:%H%M%S}.{counter}"
 
 
 def _generate_auth_info(length: int = 16) -> str:
