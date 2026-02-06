@@ -278,8 +278,9 @@ def domain():
 
 @domain.command("check")
 @click.argument("names", nargs=-1, required=True)
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def domain_check(ctx, names):
+def domain_check(ctx, names, cltrid):
     """
     Check domain availability.
 
@@ -287,7 +288,7 @@ def domain_check(ctx, names):
     """
     client = get_client(ctx)
     try:
-        result = client.domain_check(list(names))
+        result = client.domain_check(list(names), cl_trid=cltrid)
         state.formatter.output(result.results)
     except EPPCommandError as e:
         print_error(f"Command failed: {e}")
@@ -299,8 +300,9 @@ def domain_check(ctx, names):
 @domain.command("info")
 @click.argument("name")
 @click.option("--auth-info", "-a", help="Auth info for transfer query")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def domain_info(ctx, name, auth_info):
+def domain_info(ctx, name, auth_info, cltrid):
     """
     Get domain information.
 
@@ -308,7 +310,7 @@ def domain_info(ctx, name, auth_info):
     """
     client = get_client(ctx)
     try:
-        result = client.domain_info(name, auth_info=auth_info)
+        result = client.domain_info(name, auth_info=auth_info, cl_trid=cltrid)
         state.formatter.output(result)
     except EPPObjectNotFound:
         print_error(f"Domain not found: {name}")
@@ -339,10 +341,11 @@ def domain_info(ctx, name, auth_info):
 @click.option("--registrant-id", help="Registrant ID (e.g., Emirates ID)")
 @click.option("--registrant-id-type", help="Registrant ID type (e.g., EmiratesID, Passport)")
 @click.option("--registrant-name", help="Registrant name")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
 def domain_create(ctx, name, registrant, admin, tech, billing, ns, period, period_unit, auth_info,
                   eligibility_type, eligibility_name, eligibility_id, eligibility_id_type,
-                  policy_reason, registrant_id, registrant_id_type, registrant_name):
+                  policy_reason, registrant_id, registrant_id_type, registrant_name, cltrid):
     """
     Create a new domain.
 
@@ -393,6 +396,7 @@ def domain_create(ctx, name, registrant, admin, tech, billing, ns, period, perio
             period_unit=period_unit,
             auth_info=auth_info,
             ae_eligibility=ae_eligibility,
+            cl_trid=cltrid,
         )
         state.formatter.output(result)
         state.formatter.success(f"Domain created: {name}")
@@ -409,8 +413,9 @@ def domain_create(ctx, name, registrant, admin, tech, billing, ns, period, perio
 @domain.command("delete")
 @click.argument("name")
 @click.option("--confirm", "-y", is_flag=True, help="Skip confirmation")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def domain_delete(ctx, name, confirm):
+def domain_delete(ctx, name, confirm, cltrid):
     """
     Delete a domain.
 
@@ -422,7 +427,7 @@ def domain_delete(ctx, name, confirm):
 
     client = get_client(ctx)
     try:
-        client.domain_delete(name)
+        client.domain_delete(name, cl_trid=cltrid)
         state.formatter.success(f"Domain deleted: {name}")
     except EPPObjectNotFound:
         print_error(f"Domain not found: {name}")
@@ -439,8 +444,9 @@ def domain_delete(ctx, name, confirm):
 @click.option("--exp-date", "-e", required=True, help="Current expiry date (YYYY-MM-DD)")
 @click.option("--period", "-p", type=int, default=1, help="Renewal period")
 @click.option("--period-unit", type=click.Choice(["y", "m"]), default="y", help="Period unit")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def domain_renew(ctx, name, exp_date, period, period_unit):
+def domain_renew(ctx, name, exp_date, period, period_unit, cltrid):
     """
     Renew a domain.
 
@@ -453,6 +459,7 @@ def domain_renew(ctx, name, exp_date, period, period_unit):
             cur_exp_date=exp_date,
             period=period,
             period_unit=period_unit,
+            cl_trid=cltrid,
         )
         state.formatter.output(result)
         state.formatter.success(f"Domain renewed: {name}")
@@ -471,8 +478,9 @@ def domain_renew(ctx, name, exp_date, period, period_unit):
 @click.argument("operation", type=click.Choice(["request", "query", "approve", "reject", "cancel"]))
 @click.option("--auth-info", "-a", help="Auth info (required for request)")
 @click.option("--period", "-p", type=int, help="Renewal period for transfer")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def domain_transfer(ctx, name, operation, auth_info, period):
+def domain_transfer(ctx, name, operation, auth_info, period, cltrid):
     """
     Domain transfer operations.
 
@@ -485,19 +493,19 @@ def domain_transfer(ctx, name, operation, auth_info, period):
             if not auth_info:
                 print_error("Auth info required for transfer request")
                 sys.exit(1)
-            result = client.domain_transfer_request(name, auth_info, period=period)
+            result = client.domain_transfer_request(name, auth_info, period=period, cl_trid=cltrid)
             state.formatter.output(result)
         elif operation == "query":
-            result = client.domain_transfer_query(name)
+            result = client.domain_transfer_query(name, cl_trid=cltrid)
             state.formatter.output(result)
         elif operation == "approve":
-            client.domain_transfer_approve(name)
+            client.domain_transfer_approve(name, cl_trid=cltrid)
             state.formatter.success(f"Transfer approved: {name}")
         elif operation == "reject":
-            client.domain_transfer_reject(name)
+            client.domain_transfer_reject(name, cl_trid=cltrid)
             state.formatter.success(f"Transfer rejected: {name}")
         elif operation == "cancel":
-            client.domain_transfer_cancel(name)
+            client.domain_transfer_cancel(name, cl_trid=cltrid)
             state.formatter.success(f"Transfer cancelled: {name}")
     except EPPObjectNotFound:
         print_error(f"Domain not found: {name}")
@@ -518,8 +526,9 @@ def domain_transfer(ctx, name, operation, auth_info, period):
 @click.option("--rem-status", multiple=True, help="Remove status")
 @click.option("--registrant", help="New registrant contact ID")
 @click.option("--auth-info", help="New auth info")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def domain_update(ctx, name, add_ns, rem_ns, add_status, add_status_reason, rem_status, registrant, auth_info):
+def domain_update(ctx, name, add_ns, rem_ns, add_status, add_status_reason, rem_status, registrant, auth_info, cltrid):
     """
     Update a domain.
 
@@ -560,6 +569,7 @@ def domain_update(ctx, name, add_ns, rem_ns, add_status, add_status_reason, rem_
             rem_status=list(rem_status) if rem_status else None,
             new_registrant=registrant,
             new_auth_info=auth_info,
+            cl_trid=cltrid,
         )
         state.formatter.success(f"Domain updated: {name}")
     except EPPObjectNotFound:
@@ -584,8 +594,9 @@ def contact():
 
 @contact.command("check")
 @click.argument("ids", nargs=-1, required=True)
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def contact_check(ctx, ids):
+def contact_check(ctx, ids, cltrid):
     """
     Check contact availability.
 
@@ -593,7 +604,7 @@ def contact_check(ctx, ids):
     """
     client = get_client(ctx)
     try:
-        result = client.contact_check(list(ids))
+        result = client.contact_check(list(ids), cl_trid=cltrid)
         state.formatter.output(result.results)
     except EPPCommandError as e:
         print_error(f"Command failed: {e}")
@@ -605,8 +616,9 @@ def contact_check(ctx, ids):
 @contact.command("info")
 @click.argument("id")
 @click.option("--auth-info", "-a", help="Auth info")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def contact_info(ctx, id, auth_info):
+def contact_info(ctx, id, auth_info, cltrid):
     """
     Get contact information.
 
@@ -614,7 +626,7 @@ def contact_info(ctx, id, auth_info):
     """
     client = get_client(ctx)
     try:
-        result = client.contact_info(id, auth_info=auth_info)
+        result = client.contact_info(id, auth_info=auth_info, cl_trid=cltrid)
         state.formatter.output(result)
     except EPPObjectNotFound:
         print_error(f"Contact not found: {id}")
@@ -639,8 +651,9 @@ def contact_info(ctx, id, auth_info):
 @click.option("--voice", "-v", help="Phone number")
 @click.option("--fax", "-f", help="Fax number")
 @click.option("--auth-info", help="Auth info (auto-generated if not provided)")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def contact_create(ctx, id, name, email, city, country, org, street, state_province, postal_code, voice, fax, auth_info):
+def contact_create(ctx, id, name, email, city, country, org, street, state_province, postal_code, voice, fax, auth_info, cltrid):
     """
     Create a new contact.
 
@@ -661,6 +674,7 @@ def contact_create(ctx, id, name, email, city, country, org, street, state_provi
             voice=voice,
             fax=fax,
             auth_info=auth_info,
+            cl_trid=cltrid,
         )
         state.formatter.output(result)
         state.formatter.success(f"Contact created: {id}")
@@ -677,8 +691,9 @@ def contact_create(ctx, id, name, email, city, country, org, street, state_provi
 @contact.command("delete")
 @click.argument("id")
 @click.option("--confirm", "-y", is_flag=True, help="Skip confirmation")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def contact_delete(ctx, id, confirm):
+def contact_delete(ctx, id, confirm, cltrid):
     """
     Delete a contact.
 
@@ -690,7 +705,7 @@ def contact_delete(ctx, id, confirm):
 
     client = get_client(ctx)
     try:
-        client.contact_delete(id)
+        client.contact_delete(id, cl_trid=cltrid)
         state.formatter.success(f"Contact deleted: {id}")
     except EPPObjectNotFound:
         print_error(f"Contact not found: {id}")
@@ -710,8 +725,9 @@ def contact_delete(ctx, id, confirm):
 @click.option("--add-status", multiple=True, help="Add status")
 @click.option("--rem-status", multiple=True, help="Remove status")
 @click.option("--auth-info", help="New auth info")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def contact_update(ctx, id, email, voice, fax, add_status, rem_status, auth_info):
+def contact_update(ctx, id, email, voice, fax, add_status, rem_status, auth_info, cltrid):
     """
     Update a contact.
 
@@ -727,6 +743,7 @@ def contact_update(ctx, id, email, voice, fax, add_status, rem_status, auth_info
             add_status=list(add_status) if add_status else None,
             rem_status=list(rem_status) if rem_status else None,
             new_auth_info=auth_info,
+            cl_trid=cltrid,
         )
         state.formatter.success(f"Contact updated: {id}")
     except EPPObjectNotFound:
@@ -743,8 +760,9 @@ def contact_update(ctx, id, email, voice, fax, add_status, rem_status, auth_info
 @click.argument("id")
 @click.argument("op", type=click.Choice(["request", "approve", "reject", "cancel", "query"]))
 @click.option("--auth-info", "-a", help="Authorization info (required for request)")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def contact_transfer(ctx, id, op, auth_info):
+def contact_transfer(ctx, id, op, auth_info, cltrid):
     """
     Transfer a contact between registrars.
 
@@ -784,6 +802,7 @@ def contact_transfer(ctx, id, op, auth_info):
             contact_id=id,
             op=op,
             auth_info=auth_info,
+            cl_trid=cltrid,
         )
         if op == "request":
             state.formatter.success(f"Transfer requested for contact: {id}")
@@ -832,8 +851,9 @@ def host():
 
 @host.command("check")
 @click.argument("names", nargs=-1, required=True)
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def host_check(ctx, names):
+def host_check(ctx, names, cltrid):
     """
     Check host availability.
 
@@ -841,7 +861,7 @@ def host_check(ctx, names):
     """
     client = get_client(ctx)
     try:
-        result = client.host_check(list(names))
+        result = client.host_check(list(names), cl_trid=cltrid)
         state.formatter.output(result.results)
     except EPPCommandError as e:
         print_error(f"Command failed: {e}")
@@ -852,8 +872,9 @@ def host_check(ctx, names):
 
 @host.command("info")
 @click.argument("name")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def host_info(ctx, name):
+def host_info(ctx, name, cltrid):
     """
     Get host information.
 
@@ -861,7 +882,7 @@ def host_info(ctx, name):
     """
     client = get_client(ctx)
     try:
-        result = client.host_info(name)
+        result = client.host_info(name, cl_trid=cltrid)
         state.formatter.output(result)
     except EPPObjectNotFound:
         print_error(f"Host not found: {name}")
@@ -877,8 +898,9 @@ def host_info(ctx, name):
 @click.argument("name")
 @click.option("--ipv4", "-4", multiple=True, help="IPv4 address")
 @click.option("--ipv6", "-6", multiple=True, help="IPv6 address")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def host_create(ctx, name, ipv4, ipv6):
+def host_create(ctx, name, ipv4, ipv6, cltrid):
     """
     Create a new host.
 
@@ -890,6 +912,7 @@ def host_create(ctx, name, ipv4, ipv6):
             name=name,
             ipv4=list(ipv4) if ipv4 else None,
             ipv6=list(ipv6) if ipv6 else None,
+            cl_trid=cltrid,
         )
         state.formatter.output(result)
         state.formatter.success(f"Host created: {name}")
@@ -906,8 +929,9 @@ def host_create(ctx, name, ipv4, ipv6):
 @host.command("delete")
 @click.argument("name")
 @click.option("--confirm", "-y", is_flag=True, help="Skip confirmation")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def host_delete(ctx, name, confirm):
+def host_delete(ctx, name, confirm, cltrid):
     """
     Delete a host.
 
@@ -919,7 +943,7 @@ def host_delete(ctx, name, confirm):
 
     client = get_client(ctx)
     try:
-        client.host_delete(name)
+        client.host_delete(name, cl_trid=cltrid)
         state.formatter.success(f"Host deleted: {name}")
     except EPPObjectNotFound:
         print_error(f"Host not found: {name}")
@@ -940,8 +964,9 @@ def host_delete(ctx, name, confirm):
 @click.option("--add-status", multiple=True, help="Add status")
 @click.option("--rem-status", multiple=True, help="Remove status")
 @click.option("--new-name", help="Rename host")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def host_update(ctx, name, add_ipv4, add_ipv6, rem_ipv4, rem_ipv6, add_status, rem_status, new_name):
+def host_update(ctx, name, add_ipv4, add_ipv6, rem_ipv4, rem_ipv6, add_status, rem_status, new_name, cltrid):
     """
     Update a host.
 
@@ -958,6 +983,7 @@ def host_update(ctx, name, add_ipv4, add_ipv6, rem_ipv4, rem_ipv6, add_status, r
             add_status=list(add_status) if add_status else None,
             rem_status=list(rem_status) if rem_status else None,
             new_name=new_name,
+            cl_trid=cltrid,
         )
         state.formatter.success(f"Host updated: {name}")
     except EPPObjectNotFound:
@@ -981,12 +1007,13 @@ def poll():
 
 
 @poll.command("request")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def poll_request(ctx):
+def poll_request(ctx, cltrid):
     """Request next poll message."""
     client = get_client(ctx)
     try:
-        result = client.poll_request()
+        result = client.poll_request(cl_trid=cltrid)
         if result:
             state.formatter.output(result)
         else:
@@ -1000,8 +1027,9 @@ def poll_request(ctx):
 
 @poll.command("ack")
 @click.argument("msg_id")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def poll_ack(ctx, msg_id):
+def poll_ack(ctx, msg_id, cltrid):
     """
     Acknowledge poll message.
 
@@ -1009,7 +1037,7 @@ def poll_ack(ctx, msg_id):
     """
     client = get_client(ctx)
     try:
-        client.poll_ack(msg_id)
+        client.poll_ack(msg_id, cl_trid=cltrid)
         state.formatter.success(f"Message acknowledged: {msg_id}")
     except EPPCommandError as e:
         print_error(f"Command failed: {e}")
@@ -1039,10 +1067,11 @@ def ae():
 @click.option("--eligibility-name", help="Eligibility name")
 @click.option("--eligibility-id", help="Eligibility ID value")
 @click.option("--eligibility-id-type", help="Eligibility ID type (e.g., 'Trademark')")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
 def ae_modify_registrant(ctx, domain_name, registrant_name, explanation, eligibility_type,
                          policy_reason, registrant_id, registrant_id_type, eligibility_name,
-                         eligibility_id, eligibility_id_type):
+                         eligibility_id, eligibility_id_type, cltrid):
     """
     Modify AE extension registrant data for a .ae domain.
 
@@ -1074,6 +1103,7 @@ def ae_modify_registrant(ctx, domain_name, registrant_name, explanation, eligibi
             eligibility_name=eligibility_name,
             eligibility_id=eligibility_id,
             eligibility_id_type=eligibility_id_type,
+            cl_trid=cltrid,
         )
         state.formatter.success(f"AE registrant data modified for: {domain_name}")
     except EPPObjectNotFound:
@@ -1101,11 +1131,12 @@ def ae_modify_registrant(ctx, domain_name, registrant_name, explanation, eligibi
 @click.option("--eligibility-id", help="Eligibility ID value")
 @click.option("--eligibility-id-type", help="Eligibility ID type")
 @click.option("--confirm", "-y", is_flag=True, help="Skip confirmation")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
 def ae_transfer_registrant(ctx, domain_name, cur_exp_date, registrant_name, explanation,
                            eligibility_type, policy_reason, period, period_unit,
                            registrant_id, registrant_id_type, eligibility_name,
-                           eligibility_id, eligibility_id_type, confirm):
+                           eligibility_id, eligibility_id_type, confirm, cltrid):
     """
     Transfer .ae domain to a new legal registrant entity.
 
@@ -1142,6 +1173,7 @@ def ae_transfer_registrant(ctx, domain_name, cur_exp_date, registrant_name, expl
             eligibility_name=eligibility_name,
             eligibility_id=eligibility_id,
             eligibility_id_type=eligibility_id_type,
+            cl_trid=cltrid,
         )
         state.formatter.success(f"Registrant transferred for: {result.name}")
         state.formatter.output({"name": result.name, "exDate": str(result.ex_date)})
@@ -1167,8 +1199,9 @@ def ar():
 
 @ar.command("undelete")
 @click.argument("domain_name")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def ar_undelete(ctx, domain_name):
+def ar_undelete(ctx, domain_name, cltrid):
     """
     Restore a deleted domain from redemption grace period.
 
@@ -1179,7 +1212,7 @@ def ar_undelete(ctx, domain_name):
     """
     client = get_client(ctx)
     try:
-        result = client.ar_undelete(domain_name)
+        result = client.ar_undelete(domain_name, cl_trid=cltrid)
         state.formatter.success(f"Domain restored: {result.name}")
     except EPPObjectNotFound:
         print_error(f"Domain not found: {domain_name}")
@@ -1193,8 +1226,9 @@ def ar_undelete(ctx, domain_name):
 
 @ar.command("unrenew")
 @click.argument("domain_name")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def ar_unrenew(ctx, domain_name):
+def ar_unrenew(ctx, domain_name, cltrid):
     """
     Cancel a pending domain renewal.
 
@@ -1205,7 +1239,7 @@ def ar_unrenew(ctx, domain_name):
     """
     client = get_client(ctx)
     try:
-        result = client.ar_unrenew(domain_name)
+        result = client.ar_unrenew(domain_name, cl_trid=cltrid)
         state.formatter.success(f"Renewal cancelled for: {result.name}")
         state.formatter.output({"name": result.name, "exDate": str(result.ex_date)})
     except EPPObjectNotFound:
@@ -1222,8 +1256,9 @@ def ar_unrenew(ctx, domain_name):
 @click.argument("domain_name")
 @click.option("--reason", "-r", help="Reason for policy deletion")
 @click.option("--confirm", "-y", is_flag=True, help="Skip confirmation")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def ar_policy_delete(ctx, domain_name, reason, confirm):
+def ar_policy_delete(ctx, domain_name, reason, confirm, cltrid):
     """
     Delete a domain due to policy violation.
 
@@ -1240,7 +1275,7 @@ def ar_policy_delete(ctx, domain_name, reason, confirm):
 
     client = get_client(ctx)
     try:
-        client.ar_policy_delete(domain_name, reason=reason)
+        client.ar_policy_delete(domain_name, reason=reason, cl_trid=cltrid)
         state.formatter.success(f"Domain deleted for policy violation: {domain_name}")
     except EPPObjectNotFound:
         print_error(f"Domain not found: {domain_name}")
@@ -1274,8 +1309,9 @@ def enum():
 @click.option("--period", "-p", type=int, default=1, help="Registration period")
 @click.option("--period-unit", type=click.Choice(["y", "m"]), default="y", help="Period unit")
 @click.option("--auth-info", help="Auth info (auto-generated if not provided)")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def enum_create(ctx, domain_name, registrant, naptr, admin, tech, billing, ns, period, period_unit, auth_info):
+def enum_create(ctx, domain_name, registrant, naptr, admin, tech, billing, ns, period, period_unit, auth_info, cltrid):
     """
     Create an ENUM domain with NAPTR records.
 
@@ -1337,6 +1373,7 @@ def enum_create(ctx, domain_name, registrant, naptr, admin, tech, billing, ns, p
             billing=billing,
             nameservers=list(ns) if ns else None,
             auth_info=auth_info,
+            cl_trid=cltrid,
         )
         state.formatter.output(result)
         state.formatter.success(f"ENUM domain created: {domain_name}")
@@ -1353,8 +1390,9 @@ def enum_create(ctx, domain_name, registrant, naptr, admin, tech, billing, ns, p
 @enum.command("info")
 @click.argument("domain_name")
 @click.option("--auth-info", "-a", help="Auth info for transfer query")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def enum_info(ctx, domain_name, auth_info):
+def enum_info(ctx, domain_name, auth_info, cltrid):
     """
     Get ENUM domain information including NAPTR records.
 
@@ -1362,7 +1400,7 @@ def enum_info(ctx, domain_name, auth_info):
     """
     client = get_client(ctx)
     try:
-        domain_info, e164_info = client.enum_domain_info(domain_name, auth_info=auth_info)
+        domain_info, e164_info = client.enum_domain_info(domain_name, auth_info=auth_info, cl_trid=cltrid)
 
         # Output domain info
         state.formatter.output(domain_info)
@@ -1397,8 +1435,9 @@ def enum_info(ctx, domain_name, auth_info):
 @click.option("--rem-ns", multiple=True, help="Remove nameserver")
 @click.option("--registrant", help="New registrant contact ID")
 @click.option("--auth-info", help="New auth info")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def enum_update(ctx, domain_name, add_naptr, rem_naptr, add_ns, rem_ns, registrant, auth_info):
+def enum_update(ctx, domain_name, add_naptr, rem_naptr, add_ns, rem_ns, registrant, auth_info, cltrid):
     """
     Update an ENUM domain (add/remove NAPTR records).
 
@@ -1464,6 +1503,7 @@ def enum_update(ctx, domain_name, add_naptr, rem_naptr, add_ns, rem_ns, registra
             rem_ns=list(rem_ns) if rem_ns else None,
             new_registrant=registrant,
             new_auth_info=auth_info,
+            cl_trid=cltrid,
         )
         state.formatter.success(f"ENUM domain updated: {domain_name}")
     except EPPObjectNotFound:
@@ -1497,10 +1537,11 @@ def au():
 @click.option("--eligibility-name", help="Eligibility name")
 @click.option("--eligibility-id", help="Eligibility ID value")
 @click.option("--eligibility-id-type", help="Eligibility ID type (ACN, ABN, TM, etc.)")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
 def au_modify_registrant(ctx, domain_name, registrant_name, explanation, eligibility_type,
                          policy_reason, registrant_id, registrant_id_type, eligibility_name,
-                         eligibility_id, eligibility_id_type):
+                         eligibility_id, eligibility_id_type, cltrid):
     """
     Modify AU extension registrant data for a .au domain.
 
@@ -1551,6 +1592,7 @@ def au_modify_registrant(ctx, domain_name, registrant_name, explanation, eligibi
             eligibility_name=eligibility_name,
             eligibility_id=eligibility_id,
             eligibility_id_type=eligibility_id_type,
+            cl_trid=cltrid,
         )
         state.formatter.success(f"AU registrant data modified for: {domain_name}")
     except EPPObjectNotFound:
@@ -1578,11 +1620,12 @@ def au_modify_registrant(ctx, domain_name, registrant_name, explanation, eligibi
 @click.option("--eligibility-id", help="Eligibility ID value")
 @click.option("--eligibility-id-type", help="Eligibility ID type")
 @click.option("--confirm", "-y", is_flag=True, help="Skip confirmation")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
 def au_transfer_registrant(ctx, domain_name, cur_exp_date, registrant_name, explanation,
                            eligibility_type, policy_reason, period, period_unit,
                            registrant_id, registrant_id_type, eligibility_name,
-                           eligibility_id, eligibility_id_type, confirm):
+                           eligibility_id, eligibility_id_type, confirm, cltrid):
     """
     Transfer .au domain to a new legal registrant entity.
 
@@ -1619,6 +1662,7 @@ def au_transfer_registrant(ctx, domain_name, cur_exp_date, registrant_name, expl
             eligibility_name=eligibility_name,
             eligibility_id=eligibility_id,
             eligibility_id_type=eligibility_id_type,
+            cl_trid=cltrid,
         )
         state.formatter.success(f"Registrant transferred for: {result.name}")
         state.formatter.output({"name": result.name, "exDate": str(result.ex_date)})
@@ -1645,8 +1689,9 @@ def dnssec():
 @dnssec.command("info")
 @click.argument("domain_name")
 @click.option("--auth-info", "-a", help="Auth info for transfer query")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def dnssec_info(ctx, domain_name, auth_info):
+def dnssec_info(ctx, domain_name, auth_info, cltrid):
     """
     Get domain DNSSEC information.
 
@@ -1654,7 +1699,7 @@ def dnssec_info(ctx, domain_name, auth_info):
     """
     client = get_client(ctx)
     try:
-        domain_info, secdns_info = client.domain_info_secdns(domain_name, auth_info=auth_info)
+        domain_info, secdns_info = client.domain_info_secdns(domain_name, auth_info=auth_info, cl_trid=cltrid)
 
         state.formatter.output(domain_info)
 
@@ -1691,8 +1736,9 @@ def dnssec_info(ctx, domain_name, auth_info):
               help="DS record: keyTag,alg,digestType,digest (e.g., '12345,8,2,49FD46E6...')")
 @click.option("--key", "-k", multiple=True,
               help="Key record: flags,protocol,alg,pubKey (e.g., '257,3,8,AwEAAa...')")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def dnssec_add(ctx, domain_name, ds, key):
+def dnssec_add(ctx, domain_name, ds, key, cltrid):
     """
     Add DNSSEC records to a domain.
 
@@ -1753,6 +1799,7 @@ def dnssec_add(ctx, domain_name, ds, key):
             name=domain_name,
             add_ds=add_ds if add_ds else None,
             add_key=add_key if add_key else None,
+            cl_trid=cltrid,
         )
         state.formatter.success(f"DNSSEC records added to: {domain_name}")
     except EPPObjectNotFound:
@@ -1773,8 +1820,9 @@ def dnssec_add(ctx, domain_name, ds, key):
               help="Key record to remove: flags,protocol,alg,pubKey")
 @click.option("--all", "rem_all", is_flag=True, help="Remove all DNSSEC data")
 @click.option("--confirm", "-y", is_flag=True, help="Skip confirmation for --all")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def dnssec_remove(ctx, domain_name, ds, key, rem_all, confirm):
+def dnssec_remove(ctx, domain_name, ds, key, rem_all, confirm, cltrid):
     """
     Remove DNSSEC records from a domain.
 
@@ -1823,6 +1871,7 @@ def dnssec_remove(ctx, domain_name, ds, key, rem_all, confirm):
             rem_ds=rem_ds if rem_ds else None,
             rem_key=rem_key if rem_key else None,
             rem_all=rem_all,
+            cl_trid=cltrid,
         )
         state.formatter.success(f"DNSSEC records removed from: {domain_name}")
     except EPPObjectNotFound:
@@ -1854,8 +1903,9 @@ def idn():
 @click.option("--tech", "-t", help="Tech contact ID")
 @click.option("--ns", multiple=True, help="Nameserver")
 @click.option("--period", "-p", type=int, default=1, help="Registration period")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def idn_create(ctx, domain_name, registrant, user_form, language, admin, tech, ns, period):
+def idn_create(ctx, domain_name, registrant, user_form, language, admin, tech, ns, period, cltrid):
     """
     Create an IDN domain with user form.
 
@@ -1880,6 +1930,7 @@ def idn_create(ctx, domain_name, registrant, user_form, language, admin, tech, n
             admin=admin,
             tech=tech,
             nameservers=list(ns) if ns else None,
+            cl_trid=cltrid,
         )
         state.formatter.output(result)
         if idn_data and idn_data.canonical_form:
@@ -1897,8 +1948,9 @@ def idn_create(ctx, domain_name, registrant, user_form, language, admin, tech, n
 
 @idn.command("info")
 @click.argument("domain_name")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def idn_info(ctx, domain_name):
+def idn_info(ctx, domain_name, cltrid):
     """
     Get IDN domain information including user form.
 
@@ -1906,7 +1958,7 @@ def idn_info(ctx, domain_name):
     """
     client = get_client(ctx)
     try:
-        domain_info, idn_data = client.domain_info_idn(domain_name)
+        domain_info, idn_data = client.domain_info_idn(domain_name, cl_trid=cltrid)
         state.formatter.output(domain_info)
 
         if idn_data:
@@ -1941,8 +1993,9 @@ def variant():
 @click.argument("domain_name")
 @click.option("--variants", "-v", type=click.Choice(["all", "none"]), default="all",
               help="Variant query type")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def variant_info(ctx, domain_name, variants):
+def variant_info(ctx, domain_name, variants, cltrid):
     """
     Get domain variant information.
 
@@ -1950,7 +2003,7 @@ def variant_info(ctx, domain_name, variants):
     """
     client = get_client(ctx)
     try:
-        domain_info, variant_info = client.domain_info_variants(domain_name, variants=variants)
+        domain_info, variant_info = client.domain_info_variants(domain_name, variants=variants, cl_trid=cltrid)
         state.formatter.output(domain_info)
 
         if variant_info and variant_info.variants:
@@ -1973,8 +2026,9 @@ def variant_info(ctx, domain_name, variants):
 @click.argument("domain_name")
 @click.option("--variant", "-v", multiple=True, required=True,
               help="Variant to add: dnsForm,userForm (e.g., 'xn--fsqu00a,例子')")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def variant_add(ctx, domain_name, variant):
+def variant_add(ctx, domain_name, variant, cltrid):
     """
     Add variants to a domain.
 
@@ -1990,7 +2044,7 @@ def variant_add(ctx, domain_name, variant):
 
     client = get_client(ctx)
     try:
-        client.domain_update_variants(domain_name, add_variants=add_variants)
+        client.domain_update_variants(domain_name, add_variants=add_variants, cl_trid=cltrid)
         state.formatter.success(f"Variants added to: {domain_name}")
     except EPPObjectNotFound:
         print_error(f"Domain not found: {domain_name}")
@@ -2006,8 +2060,9 @@ def variant_add(ctx, domain_name, variant):
 @click.argument("domain_name")
 @click.option("--variant", "-v", multiple=True, required=True,
               help="Variant DNS form to remove")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def variant_remove(ctx, domain_name, variant):
+def variant_remove(ctx, domain_name, variant, cltrid):
     """
     Remove variants from a domain.
 
@@ -2015,7 +2070,7 @@ def variant_remove(ctx, domain_name, variant):
     """
     client = get_client(ctx)
     try:
-        client.domain_update_variants(domain_name, rem_variants=list(variant))
+        client.domain_update_variants(domain_name, rem_variants=list(variant), cl_trid=cltrid)
         state.formatter.success(f"Variants removed from: {domain_name}")
     except EPPObjectNotFound:
         print_error(f"Domain not found: {domain_name}")
@@ -2035,8 +2090,9 @@ def variant_remove(ctx, domain_name, variant):
 @click.argument("domain_name")
 @click.option("--exp-date", "-e", required=True,
               help="Target expiry date (YYYY-MM-DDTHH:MM:SS.0Z or YYYY-MM-DD)")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def domain_sync_cmd(ctx, domain_name, exp_date):
+def domain_sync_cmd(ctx, domain_name, exp_date, cltrid):
     """
     Synchronize domain expiry date.
 
@@ -2056,7 +2112,7 @@ def domain_sync_cmd(ctx, domain_name, exp_date):
 
     client = get_client(ctx)
     try:
-        client.domain_sync(domain_name, exp_date)
+        client.domain_sync(domain_name, exp_date, cl_trid=cltrid)
         state.formatter.success(f"Domain expiry synchronized: {domain_name}")
     except EPPObjectNotFound:
         print_error(f"Domain not found: {domain_name}")
@@ -2080,8 +2136,9 @@ def kv():
 
 @kv.command("info")
 @click.argument("domain_name")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def kv_info(ctx, domain_name):
+def kv_info(ctx, domain_name, cltrid):
     """
     Get domain key-value metadata.
 
@@ -2089,7 +2146,7 @@ def kv_info(ctx, domain_name):
     """
     client = get_client(ctx)
     try:
-        domain_info, kv_info = client.domain_info_kv(domain_name)
+        domain_info, kv_info = client.domain_info_kv(domain_name, cl_trid=cltrid)
         state.formatter.output(domain_info)
 
         if kv_info and kv_info.kvlists:
@@ -2115,8 +2172,9 @@ def kv_info(ctx, domain_name):
 @click.option("--list", "-l", "list_name", required=True, help="List name (e.g., 'metadata')")
 @click.option("--item", "-i", multiple=True, required=True,
               help="Key-value item: key=value")
+@click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def kv_set(ctx, domain_name, list_name, item):
+def kv_set(ctx, domain_name, list_name, item, cltrid):
     """
     Set key-value metadata for a domain.
 
@@ -2138,7 +2196,7 @@ def kv_set(ctx, domain_name, list_name, item):
 
     client = get_client(ctx)
     try:
-        client.domain_update_kv(domain_name, kvlists)
+        client.domain_update_kv(domain_name, kvlists, cl_trid=cltrid)
         state.formatter.success(f"Key-value data updated for: {domain_name}")
     except EPPObjectNotFound:
         print_error(f"Domain not found: {domain_name}")

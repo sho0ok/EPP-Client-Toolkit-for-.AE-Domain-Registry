@@ -171,6 +171,10 @@ class EPPClient:
         self._cl_trid_counter += 1
         return f"CLI-{self._cl_trid_counter:06d}"
 
+    def _resolve_cl_trid(self, cl_trid: Optional[str] = None) -> str:
+        """Return custom cl_trid if provided, otherwise auto-generate one."""
+        return cl_trid if cl_trid else self._generate_cl_trid()
+
     def _generate_auth_info(self, length: int = 16) -> str:
         """Generate random auth info password."""
         chars = string.ascii_letters + string.digits + "!@#$%"
@@ -306,6 +310,7 @@ class EPPClient:
         new_password: str = None,
         version: str = "1.0",
         lang: str = "en",
+        cl_trid: str = None,
     ) -> EPPResponse:
         """
         Login to EPP server.
@@ -339,7 +344,7 @@ class EPPClient:
             lang=lang,
             obj_uris=obj_uris,
             ext_uris=ext_uris,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
 
         response_xml = self._send_command(xml)
@@ -352,7 +357,7 @@ class EPPClient:
         logger.info(f"Logged in as {client_id}")
         return response
 
-    def logout(self) -> EPPResponse:
+    def logout(self, cl_trid: str = None) -> EPPResponse:
         """
         Logout from EPP server.
 
@@ -362,7 +367,7 @@ class EPPClient:
         Raises:
             EPPCommandError: If logout fails
         """
-        xml = XMLBuilder.build_logout(cl_trid=self._generate_cl_trid())
+        xml = XMLBuilder.build_logout(cl_trid=self._resolve_cl_trid(cl_trid))
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
 
@@ -375,7 +380,7 @@ class EPPClient:
     # Poll Commands
     # =========================================================================
 
-    def poll_request(self) -> Tuple[EPPResponse, Optional[PollMessage]]:
+    def poll_request(self, cl_trid: str = None) -> Tuple[EPPResponse, Optional[PollMessage]]:
         """
         Request next poll message.
 
@@ -385,7 +390,7 @@ class EPPClient:
         Raises:
             EPPCommandError: If command fails
         """
-        xml = XMLBuilder.build_poll_request(cl_trid=self._generate_cl_trid())
+        xml = XMLBuilder.build_poll_request(cl_trid=self._resolve_cl_trid(cl_trid))
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
 
@@ -397,7 +402,7 @@ class EPPClient:
         message = XMLParser.parse_poll_message(response_xml)
         return response, message
 
-    def poll_ack(self, msg_id: str) -> EPPResponse:
+    def poll_ack(self, msg_id: str, cl_trid: str = None) -> EPPResponse:
         """
         Acknowledge poll message.
 
@@ -412,7 +417,7 @@ class EPPClient:
         """
         xml = XMLBuilder.build_poll_ack(
             msg_id=msg_id,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -423,7 +428,7 @@ class EPPClient:
     # Domain Commands
     # =========================================================================
 
-    def domain_check(self, names: Union[str, List[str]]) -> DomainCheckResult:
+    def domain_check(self, names: Union[str, List[str]], cl_trid: str = None) -> DomainCheckResult:
         """
         Check domain availability.
 
@@ -441,7 +446,7 @@ class EPPClient:
 
         xml = XMLBuilder.build_domain_check(
             names=names,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -454,6 +459,7 @@ class EPPClient:
         name: str,
         auth_info: str = None,
         hosts: str = "all",
+        cl_trid: str = None,
     ) -> DomainInfo:
         """
         Get domain information.
@@ -474,7 +480,7 @@ class EPPClient:
             name=name,
             auth_info=auth_info,
             hosts=hosts,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -494,6 +500,7 @@ class EPPClient:
         nameservers: List[str] = None,
         auth_info: str = None,
         ae_eligibility: AEEligibility = None,
+        cl_trid: str = None,
     ) -> DomainCreateResult:
         """
         Create a domain.
@@ -536,7 +543,7 @@ class EPPClient:
 
         xml = XMLBuilder.build_domain_create(
             create_data=create_data,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -544,7 +551,7 @@ class EPPClient:
         self._check_response(response)
         return XMLParser.parse_domain_create(response_xml)
 
-    def domain_delete(self, name: str) -> EPPResponse:
+    def domain_delete(self, name: str, cl_trid: str = None) -> EPPResponse:
         """
         Delete a domain.
 
@@ -560,7 +567,7 @@ class EPPClient:
         """
         xml = XMLBuilder.build_domain_delete(
             name=name,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -573,6 +580,7 @@ class EPPClient:
         cur_exp_date: str,
         period: int = 1,
         period_unit: str = "y",
+        cl_trid: str = None,
     ) -> DomainRenewResult:
         """
         Renew a domain.
@@ -595,7 +603,7 @@ class EPPClient:
             cur_exp_date=cur_exp_date,
             period=period,
             period_unit=period_unit,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -609,6 +617,7 @@ class EPPClient:
         auth_info: str,
         period: int = None,
         period_unit: str = "y",
+        cl_trid: str = None,
     ) -> DomainTransferResult:
         """
         Request domain transfer.
@@ -632,7 +641,7 @@ class EPPClient:
             auth_info=auth_info,
             period=period,
             period_unit=period_unit,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -640,7 +649,7 @@ class EPPClient:
         self._check_response(response)
         return XMLParser.parse_domain_transfer(response_xml)
 
-    def domain_transfer_query(self, name: str) -> DomainTransferResult:
+    def domain_transfer_query(self, name: str, cl_trid: str = None) -> DomainTransferResult:
         """
         Query domain transfer status.
 
@@ -657,7 +666,7 @@ class EPPClient:
         xml = XMLBuilder.build_domain_transfer(
             name=name,
             op="query",
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -665,7 +674,7 @@ class EPPClient:
         self._check_response(response)
         return XMLParser.parse_domain_transfer(response_xml)
 
-    def domain_transfer_approve(self, name: str) -> EPPResponse:
+    def domain_transfer_approve(self, name: str, cl_trid: str = None) -> EPPResponse:
         """
         Approve domain transfer.
 
@@ -681,14 +690,14 @@ class EPPClient:
         xml = XMLBuilder.build_domain_transfer(
             name=name,
             op="approve",
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
 
         return self._check_response(response)
 
-    def domain_transfer_reject(self, name: str) -> EPPResponse:
+    def domain_transfer_reject(self, name: str, cl_trid: str = None) -> EPPResponse:
         """
         Reject domain transfer.
 
@@ -704,14 +713,14 @@ class EPPClient:
         xml = XMLBuilder.build_domain_transfer(
             name=name,
             op="reject",
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
 
         return self._check_response(response)
 
-    def domain_transfer_cancel(self, name: str) -> EPPResponse:
+    def domain_transfer_cancel(self, name: str, cl_trid: str = None) -> EPPResponse:
         """
         Cancel domain transfer request.
 
@@ -727,7 +736,7 @@ class EPPClient:
         xml = XMLBuilder.build_domain_transfer(
             name=name,
             op="cancel",
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -743,6 +752,7 @@ class EPPClient:
         rem_status: List = None,
         new_registrant: str = None,
         new_auth_info: str = None,
+        cl_trid: str = None,
     ) -> EPPResponse:
         """
         Update a domain.
@@ -776,7 +786,7 @@ class EPPClient:
 
         xml = XMLBuilder.build_domain_update(
             update_data=update_data,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -787,7 +797,7 @@ class EPPClient:
     # Contact Commands
     # =========================================================================
 
-    def contact_check(self, ids: Union[str, List[str]]) -> ContactCheckResult:
+    def contact_check(self, ids: Union[str, List[str]], cl_trid: str = None) -> ContactCheckResult:
         """
         Check contact availability.
 
@@ -805,7 +815,7 @@ class EPPClient:
 
         xml = XMLBuilder.build_contact_check(
             ids=ids,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -813,7 +823,7 @@ class EPPClient:
         self._check_response(response)
         return XMLParser.parse_contact_check(response_xml)
 
-    def contact_info(self, id: str, auth_info: str = None) -> ContactInfo:
+    def contact_info(self, id: str, auth_info: str = None, cl_trid: str = None) -> ContactInfo:
         """
         Get contact information.
 
@@ -831,7 +841,7 @@ class EPPClient:
         xml = XMLBuilder.build_contact_info(
             id=id,
             auth_info=auth_info,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -854,6 +864,7 @@ class EPPClient:
         fax: str = None,
         auth_info: str = None,
         postal_type: str = "int",
+        cl_trid: str = None,
     ) -> ContactCreateResult:
         """
         Create a contact.
@@ -907,7 +918,7 @@ class EPPClient:
 
         xml = XMLBuilder.build_contact_create(
             create_data=create_data,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -915,7 +926,7 @@ class EPPClient:
         self._check_response(response)
         return XMLParser.parse_contact_create(response_xml)
 
-    def contact_delete(self, id: str) -> EPPResponse:
+    def contact_delete(self, id: str, cl_trid: str = None) -> EPPResponse:
         """
         Delete a contact.
 
@@ -931,7 +942,7 @@ class EPPClient:
         """
         xml = XMLBuilder.build_contact_delete(
             id=id,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -947,6 +958,7 @@ class EPPClient:
         new_voice: str = None,
         new_fax: str = None,
         new_auth_info: str = None,
+        cl_trid: str = None,
     ) -> EPPResponse:
         """
         Update a contact.
@@ -979,7 +991,7 @@ class EPPClient:
 
         xml = XMLBuilder.build_contact_update(
             update_data=update_data,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -991,6 +1003,7 @@ class EPPClient:
         contact_id: str,
         op: str = "request",
         auth_info: str = None,
+        cl_trid: str = None,
     ) -> "ContactTransferResult":
         """
         Transfer a contact between registrars.
@@ -1038,7 +1051,7 @@ class EPPClient:
             contact_id=contact_id,
             op=op,
             auth_info=auth_info,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -1050,7 +1063,7 @@ class EPPClient:
     # Host Commands
     # =========================================================================
 
-    def host_check(self, names: Union[str, List[str]]) -> HostCheckResult:
+    def host_check(self, names: Union[str, List[str]], cl_trid: str = None) -> HostCheckResult:
         """
         Check host availability.
 
@@ -1068,7 +1081,7 @@ class EPPClient:
 
         xml = XMLBuilder.build_host_check(
             names=names,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -1076,7 +1089,7 @@ class EPPClient:
         self._check_response(response)
         return XMLParser.parse_host_check(response_xml)
 
-    def host_info(self, name: str) -> HostInfo:
+    def host_info(self, name: str, cl_trid: str = None) -> HostInfo:
         """
         Get host information.
 
@@ -1092,7 +1105,7 @@ class EPPClient:
         """
         xml = XMLBuilder.build_host_info(
             name=name,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -1105,6 +1118,7 @@ class EPPClient:
         name: str,
         ipv4: List[str] = None,
         ipv6: List[str] = None,
+        cl_trid: str = None,
     ) -> HostCreateResult:
         """
         Create a host.
@@ -1136,7 +1150,7 @@ class EPPClient:
 
         xml = XMLBuilder.build_host_create(
             create_data=create_data,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -1144,7 +1158,7 @@ class EPPClient:
         self._check_response(response)
         return XMLParser.parse_host_create(response_xml)
 
-    def host_delete(self, name: str) -> EPPResponse:
+    def host_delete(self, name: str, cl_trid: str = None) -> EPPResponse:
         """
         Delete a host.
 
@@ -1160,7 +1174,7 @@ class EPPClient:
         """
         xml = XMLBuilder.build_host_delete(
             name=name,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -1177,6 +1191,7 @@ class EPPClient:
         add_status: List[str] = None,
         rem_status: List[str] = None,
         new_name: str = None,
+        cl_trid: str = None,
     ) -> EPPResponse:
         """
         Update a host.
@@ -1223,7 +1238,7 @@ class EPPClient:
 
         xml = XMLBuilder.build_host_update(
             update_data=update_data,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -1246,6 +1261,7 @@ class EPPClient:
         eligibility_name: str = None,
         eligibility_id: str = None,
         eligibility_id_type: str = None,
+        cl_trid: str = None,
     ) -> EPPResponse:
         """
         Modify AE extension registrant data for a .ae domain.
@@ -1284,7 +1300,7 @@ class EPPClient:
             eligibility_name=eligibility_name,
             eligibility_id=eligibility_id,
             eligibility_id_type=eligibility_id_type,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -1306,6 +1322,7 @@ class EPPClient:
         eligibility_name: str = None,
         eligibility_id: str = None,
         eligibility_id_type: str = None,
+        cl_trid: str = None,
     ) -> AETransferRegistrantResult:
         """
         Transfer .ae domain to a new legal registrant entity.
@@ -1352,7 +1369,7 @@ class EPPClient:
             eligibility_name=eligibility_name,
             eligibility_id=eligibility_id,
             eligibility_id_type=eligibility_id_type,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -1364,7 +1381,7 @@ class EPPClient:
     # AR Extension Commands
     # =========================================================================
 
-    def ar_undelete(self, domain_name: str) -> ARUndeleteResult:
+    def ar_undelete(self, domain_name: str, cl_trid: str = None) -> ARUndeleteResult:
         """
         Restore a deleted domain from redemption grace period.
 
@@ -1384,7 +1401,7 @@ class EPPClient:
         """
         xml = XMLBuilder.build_ar_undelete(
             domain_name=domain_name,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -1392,7 +1409,7 @@ class EPPClient:
         self._check_response(response)
         return XMLParser.parse_ar_undelete(response_xml)
 
-    def ar_unrenew(self, domain_name: str) -> ARUnrenewResult:
+    def ar_unrenew(self, domain_name: str, cl_trid: str = None) -> ARUnrenewResult:
         """
         Cancel a pending domain renewal.
 
@@ -1412,7 +1429,7 @@ class EPPClient:
         """
         xml = XMLBuilder.build_ar_unrenew(
             domain_name=domain_name,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -1424,6 +1441,7 @@ class EPPClient:
         self,
         domain_name: str,
         reason: str = None,
+        cl_trid: str = None,
     ) -> EPPResponse:
         """
         Delete a domain due to policy violation.
@@ -1445,7 +1463,7 @@ class EPPClient:
         xml = XMLBuilder.build_ar_policy_delete(
             domain_name=domain_name,
             reason=reason,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -1468,6 +1486,7 @@ class EPPClient:
         eligibility_name: str = None,
         eligibility_id: str = None,
         eligibility_id_type: str = None,
+        cl_trid: str = None,
     ) -> EPPResponse:
         """
         Modify AU extension registrant data for a .au domain.
@@ -1506,7 +1525,7 @@ class EPPClient:
             eligibility_name=eligibility_name,
             eligibility_id=eligibility_id,
             eligibility_id_type=eligibility_id_type,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -1528,6 +1547,7 @@ class EPPClient:
         eligibility_name: str = None,
         eligibility_id: str = None,
         eligibility_id_type: str = None,
+        cl_trid: str = None,
     ) -> AUTransferRegistrantResult:
         """
         Transfer .au domain to a new legal registrant entity.
@@ -1574,7 +1594,7 @@ class EPPClient:
             eligibility_name=eligibility_name,
             eligibility_id=eligibility_id,
             eligibility_id_type=eligibility_id_type,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -1598,6 +1618,7 @@ class EPPClient:
         billing: str = None,
         nameservers: List[str] = None,
         auth_info: str = None,
+        cl_trid: str = None,
     ) -> DomainCreateResult:
         """
         Create an ENUM domain with NAPTR records.
@@ -1657,7 +1678,7 @@ class EPPClient:
             billing=billing,
             nameservers=nameservers or [],
             auth_info=auth_info,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -1676,6 +1697,7 @@ class EPPClient:
         rem_status: List[str] = None,
         new_registrant: str = None,
         new_auth_info: str = None,
+        cl_trid: str = None,
     ) -> EPPResponse:
         """
         Update an ENUM domain with NAPTR record changes.
@@ -1718,7 +1740,7 @@ class EPPClient:
             rem_status=rem_status,
             new_registrant=new_registrant,
             new_auth_info=new_auth_info,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -1730,6 +1752,7 @@ class EPPClient:
         name: str,
         auth_info: str = None,
         hosts: str = "all",
+        cl_trid: str = None,
     ) -> Tuple[DomainInfo, Optional[E164InfoData]]:
         """
         Get ENUM domain information including NAPTR records.
@@ -1758,7 +1781,7 @@ class EPPClient:
             name=name,
             auth_info=auth_info,
             hosts=hosts,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -1788,6 +1811,7 @@ class EPPClient:
         billing: str = None,
         nameservers: List[str] = None,
         auth_info: str = None,
+        cl_trid: str = None,
     ) -> DomainCreateResult:
         """
         Create a domain with DNSSEC data.
@@ -1838,7 +1862,7 @@ class EPPClient:
             billing=billing,
             nameservers=nameservers or [],
             auth_info=auth_info,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -1856,6 +1880,7 @@ class EPPClient:
         rem_all: bool = False,
         new_max_sig_life: int = None,
         urgent: bool = False,
+        cl_trid: str = None,
     ) -> EPPResponse:
         """
         Update DNSSEC data for a domain.
@@ -1886,7 +1911,7 @@ class EPPClient:
             rem_all=rem_all,
             new_max_sig_life=new_max_sig_life,
             urgent=urgent,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -1898,6 +1923,7 @@ class EPPClient:
         name: str,
         auth_info: str = None,
         hosts: str = "all",
+        cl_trid: str = None,
     ) -> Tuple[DomainInfo, Optional[SecDNSInfo]]:
         """
         Get domain info including DNSSEC data.
@@ -1918,7 +1944,7 @@ class EPPClient:
             name=name,
             auth_info=auth_info,
             hosts=hosts,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -1947,6 +1973,7 @@ class EPPClient:
         billing: str = None,
         nameservers: List[str] = None,
         auth_info: str = None,
+        cl_trid: str = None,
     ) -> Tuple[DomainCreateResult, Optional[IDNData]]:
         """
         Create an IDN domain with user form and language.
@@ -1986,7 +2013,7 @@ class EPPClient:
             billing=billing,
             nameservers=nameservers or [],
             auth_info=auth_info,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -2003,6 +2030,7 @@ class EPPClient:
         name: str,
         auth_info: str = None,
         hosts: str = "all",
+        cl_trid: str = None,
     ) -> Tuple[DomainInfo, Optional[IDNData]]:
         """
         Get IDN domain info including user form and language.
@@ -2023,7 +2051,7 @@ class EPPClient:
             name=name,
             auth_info=auth_info,
             hosts=hosts,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -2045,6 +2073,7 @@ class EPPClient:
         variants: str = "all",
         auth_info: str = None,
         hosts: str = "all",
+        cl_trid: str = None,
     ) -> Tuple[DomainInfo, Optional[VariantInfo]]:
         """
         Get domain info with variant information.
@@ -2067,7 +2096,7 @@ class EPPClient:
             variants=variants,
             auth_info=auth_info,
             hosts=hosts,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -2084,6 +2113,7 @@ class EPPClient:
         name: str,
         add_variants: List[Dict[str, str]] = None,
         rem_variants: List[str] = None,
+        cl_trid: str = None,
     ) -> EPPResponse:
         """
         Update domain variants.
@@ -2106,7 +2136,7 @@ class EPPClient:
             domain_name=name,
             add_variants=add_variants,
             rem_variants=rem_variants,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -2121,6 +2151,7 @@ class EPPClient:
         self,
         name: str,
         exp_date: str,
+        cl_trid: str = None,
     ) -> EPPResponse:
         """
         Synchronize domain expiry date.
@@ -2139,7 +2170,7 @@ class EPPClient:
         xml = XMLBuilder.build_domain_update_with_sync(
             domain_name=name,
             exp_date=exp_date,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -2162,6 +2193,7 @@ class EPPClient:
         billing: str = None,
         nameservers: List[str] = None,
         auth_info: str = None,
+        cl_trid: str = None,
     ) -> DomainCreateResult:
         """
         Create a domain with key-value metadata.
@@ -2216,7 +2248,7 @@ class EPPClient:
             billing=billing,
             nameservers=nameservers or [],
             auth_info=auth_info,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -2228,6 +2260,7 @@ class EPPClient:
         self,
         name: str,
         kvlists: List[Dict[str, Any]],
+        cl_trid: str = None,
     ) -> EPPResponse:
         """
         Update domain key-value metadata.
@@ -2246,7 +2279,7 @@ class EPPClient:
         xml = XMLBuilder.build_domain_update_with_kv(
             domain_name=name,
             kvlists=kvlists,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
@@ -2258,6 +2291,7 @@ class EPPClient:
         name: str,
         auth_info: str = None,
         hosts: str = "all",
+        cl_trid: str = None,
     ) -> Tuple[DomainInfo, Optional[KVInfo]]:
         """
         Get domain info including key-value metadata.
@@ -2278,7 +2312,7 @@ class EPPClient:
             name=name,
             auth_info=auth_info,
             hosts=hosts,
-            cl_trid=self._generate_cl_trid(),
+            cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
