@@ -1988,6 +1988,7 @@ class EPPClient:
         billing: str = None,
         nameservers: List[str] = None,
         auth_info: str = None,
+        ae_eligibility=None,
         cl_trid: str = None,
     ) -> Tuple[DomainCreateResult, Optional[IDNData]]:
         """
@@ -2028,6 +2029,7 @@ class EPPClient:
             billing=billing,
             nameservers=nameservers or [],
             auth_info=auth_info,
+            ae_eligibility=ae_eligibility,
             cl_trid=self._resolve_cl_trid(cl_trid),
         )
         response_xml = self._send_command(xml)

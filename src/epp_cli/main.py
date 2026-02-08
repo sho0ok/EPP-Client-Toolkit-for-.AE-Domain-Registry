@@ -1903,9 +1903,20 @@ def idn():
 @click.option("--tech", "-t", help="Tech contact ID")
 @click.option("--ns", multiple=True, help="Nameserver")
 @click.option("--period", "-p", type=int, default=1, help="Registration period")
+# AE Eligibility extension options (required for .ae/.امارات zones)
+@click.option("--eligibility-type", help="Eligibility type (e.g., 'Trade License', 'Trademark')")
+@click.option("--eligibility-name", help="Eligibility name (company/organization name)")
+@click.option("--eligibility-id", help="Eligibility ID (license/trademark number)")
+@click.option("--eligibility-id-type", help="Eligibility ID type (e.g., 'Trade License', 'Trademark')")
+@click.option("--policy-reason", type=int, help="Policy reason (1-99)")
+@click.option("--registrant-id", help="Registrant ID")
+@click.option("--registrant-id-type", help="Registrant ID type")
+@click.option("--registrant-name", help="Registrant name")
 @click.option("--cltrid", help="Custom client transaction ID")
 @click.pass_context
-def idn_create(ctx, domain_name, registrant, user_form, language, admin, tech, ns, period, cltrid):
+def idn_create(ctx, domain_name, registrant, user_form, language, admin, tech, ns, period,
+               eligibility_type, eligibility_name, eligibility_id, eligibility_id_type,
+               policy_reason, registrant_id, registrant_id_type, registrant_name, cltrid):
     """
     Create an IDN domain with user form.
 
@@ -1913,12 +1924,29 @@ def idn_create(ctx, domain_name, registrant, user_form, language, admin, tech, n
 
     \b
     Examples:
-      # Arabic domain
-      epp idn create xn--mgbh0fb.ae -r contact123 -u "مثال" -l ar
+      # Arabic .ae domain with eligibility
+      epp idn create xn--mgbachtv.xn--mgbaam7a8h -r C140499 \\
+          -u "اختبار.امارات" -l ar -t C140499 -a C140499 \\
+          --eligibility-type "Trade License" --registrant-name "Test Corp" \\
+          --policy-reason 1
 
-      # German domain
+      # German domain (no eligibility needed)
       epp idn create xn--mnchen-3ya.de -r contact123 -u "münchen" -l de
     """
+    # Build AE eligibility extension if any eligibility options provided
+    ae_eligibility = None
+    if eligibility_type or eligibility_name or registrant_name:
+        ae_eligibility = AEEligibility(
+            eligibility_type=eligibility_type or "",
+            eligibility_name=eligibility_name or "",
+            eligibility_id=eligibility_id,
+            eligibility_id_type=eligibility_id_type,
+            policy_reason=policy_reason,
+            registrant_id=registrant_id,
+            registrant_id_type=registrant_id_type,
+            registrant_name=registrant_name,
+        )
+
     client = get_client(ctx)
     try:
         result, idn_data = client.domain_create_with_idn(
@@ -1930,6 +1958,7 @@ def idn_create(ctx, domain_name, registrant, user_form, language, admin, tech, n
             admin=admin,
             tech=tech,
             nameservers=list(ns) if ns else None,
+            ae_eligibility=ae_eligibility,
             cl_trid=cltrid,
         )
         state.formatter.output(result)

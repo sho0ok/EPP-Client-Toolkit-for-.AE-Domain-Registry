@@ -1814,10 +1814,13 @@ class XMLBuilder:
         billing: str = None,
         nameservers: List[str] = None,
         auth_info: str = None,
+        ae_eligibility=None,
         cl_trid: str = None,
     ) -> bytes:
         """
         Build domain:create command with idnadomain:create extension.
+
+        Optionally includes aeEligibility:create extension for .ae/.امارات zones.
 
         Args:
             domain_name: Domain name (ACE/Punycode form)
@@ -1829,6 +1832,7 @@ class XMLBuilder:
             admin, tech, billing: Contact IDs
             nameservers: Nameserver list
             auth_info: Auth info
+            ae_eligibility: AEEligibility data for .ae zones (optional)
             cl_trid: Client transaction ID
 
         Returns:
@@ -1874,8 +1878,10 @@ class XMLBuilder:
         auth_elem = etree.SubElement(domain_create, "{%s}authInfo" % DOMAIN_NS)
         etree.SubElement(auth_elem, "{%s}pw" % DOMAIN_NS).text = auth_info
 
-        # IDN extension
+        # Extension element (IDN + optionally AE eligibility)
         extension = etree.SubElement(command, "{%s}extension" % EPP_NS)
+
+        # IDN extension
         idn_create = etree.SubElement(
             extension,
             "{%s}create" % IDN_NS,
@@ -1885,6 +1891,30 @@ class XMLBuilder:
         user_form_elem = etree.SubElement(idn_create, "{%s}userForm" % IDN_NS)
         user_form_elem.text = user_form
         user_form_elem.set("language", language)
+
+        # AE Eligibility extension (for .ae/.امارات zones)
+        if ae_eligibility:
+            ae_create = etree.SubElement(
+                extension,
+                "{%s}create" % AE_ELIGIBILITY_NS,
+                nsmap={"aeEligibility": AE_ELIGIBILITY_NS}
+            )
+            if ae_eligibility.eligibility_type:
+                etree.SubElement(ae_create, "{%s}eligibilityType" % AE_ELIGIBILITY_NS).text = ae_eligibility.eligibility_type
+            if ae_eligibility.eligibility_name:
+                etree.SubElement(ae_create, "{%s}eligibilityName" % AE_ELIGIBILITY_NS).text = ae_eligibility.eligibility_name
+            if ae_eligibility.eligibility_id:
+                etree.SubElement(ae_create, "{%s}eligibilityID" % AE_ELIGIBILITY_NS).text = ae_eligibility.eligibility_id
+            if ae_eligibility.eligibility_id_type:
+                etree.SubElement(ae_create, "{%s}eligibilityIDType" % AE_ELIGIBILITY_NS).text = ae_eligibility.eligibility_id_type
+            if ae_eligibility.policy_reason is not None:
+                etree.SubElement(ae_create, "{%s}policyReason" % AE_ELIGIBILITY_NS).text = str(ae_eligibility.policy_reason)
+            if ae_eligibility.registrant_id:
+                etree.SubElement(ae_create, "{%s}registrantID" % AE_ELIGIBILITY_NS).text = ae_eligibility.registrant_id
+            if ae_eligibility.registrant_id_type:
+                etree.SubElement(ae_create, "{%s}registrantIDType" % AE_ELIGIBILITY_NS).text = ae_eligibility.registrant_id_type
+            if ae_eligibility.registrant_name:
+                etree.SubElement(ae_create, "{%s}registrantName" % AE_ELIGIBILITY_NS).text = ae_eligibility.registrant_name
 
         _add_cl_trid(command, cl_trid)
         return _to_bytes(root)
