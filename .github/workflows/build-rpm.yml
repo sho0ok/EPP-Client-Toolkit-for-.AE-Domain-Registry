@@ -53,11 +53,19 @@ jobs:
                    --define "_sourcedir $PWD/build/rpmbuild/SOURCES" \
                    -bb build/rpmbuild/SPECS/epp-client.spec
 
+      - name: Find RPM
+        id: find-rpm
+        run: |
+          RPM_FILE=$(find build/rpmbuild/RPMS -name '*.rpm' -type f | head -1)
+          echo "rpm_path=${RPM_FILE}" >> $GITHUB_OUTPUT
+          echo "rpm_name=$(basename ${RPM_FILE})" >> $GITHUB_OUTPUT
+          echo "Found RPM: ${RPM_FILE}"
+
       - name: Upload RPM artifact
         uses: actions/upload-artifact@v4
         with:
           name: epp-client-rpm
-          path: build/rpmbuild/RPMS/**/*.rpm
+          path: ${{ steps.find-rpm.outputs.rpm_path }}
 
   release:
     needs: build
@@ -73,14 +81,17 @@ jobs:
           path: ./rpm
 
       - name: List files
-        run: find ./rpm -type f
+        run: |
+          echo "=== Downloaded files ==="
+          find ./rpm -type f
+          ls -la ./rpm/
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.1-build${{ github.run_number }}
           name: EPP Client v1.0.1 (Build ${{ github.run_number }})
-          files: ./rpm/**/*.rpm
+          files: ./rpm/*.rpm
           draft: false
           prerelease: false
           body: |
