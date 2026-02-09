@@ -21,12 +21,14 @@ TOTAL=0
 # Test object names (unique per run)
 CONTACT1="TST${SUFFIX}A"
 CONTACT2="TST${SUFFIX}B"
-# Use external hosts (not subordinate to .ae) to avoid glue record issues
-# Subordinate hosts under .ae require the parent domain to exist first
-HOST1="ns1.fulltest${SUFFIX}.com"
-HOST2="ns2.fulltest${SUFFIX}.com"
 DOMAIN1="fulltest${SUFFIX}.ae"
 DOMAIN2="fulltest${SUFFIX}.co.ae"
+# Subordinate hosts under DOMAIN1 (registrar has full authority)
+HOST1="ns1.${DOMAIN1}"
+HOST2="ns2.${DOMAIN1}"
+# Well-known external nameservers for domain create (before our hosts exist)
+EXT_NS1="ns1.google.com"
+EXT_NS2="ns2.google.com"
 
 # Transfer test domain (pre-existing, owned by another registrar)
 TRANSFER_DOMAIN="20250902.ae"
@@ -118,25 +120,48 @@ run_raw "Contact Create ${CONTACT2} (tech)" \
 run_raw "Contact Info ${CONTACT1}" \
     "<?xml version=\"1.0\" encoding=\"UTF-8\"?><epp xmlns=\"urn:ietf:params:xml:ns:epp-1.0\"><command><info><contact:info xmlns:contact=\"urn:ietf:params:xml:ns:contact-1.0\"><contact:id>${CONTACT1}</contact:id><contact:authInfo><contact:pw>${AUTH_PW}</contact:pw></contact:authInfo></contact:info></info><clTRID>T.CON.INF.001</clTRID></command></epp>"
 
-run_raw "Contact Update ${CONTACT2} (change org+name)" \
-    "<?xml version=\"1.0\" encoding=\"UTF-8\"?><epp xmlns=\"urn:ietf:params:xml:ns:epp-1.0\"><command><update><contact:update xmlns:contact=\"urn:ietf:params:xml:ns:contact-1.0\"><contact:id>${CONTACT2}</contact:id><contact:chg><contact:postalInfo type=\"loc\"><contact:name>Tech Contact ${SUFFIX}</contact:name><contact:org>Updated Tech Corp</contact:org></contact:postalInfo></contact:chg></contact:update></update><clTRID>T.CON.UPD.001</clTRID></command></epp>"
+run_raw "Contact Update ${CONTACT2} (change org)" \
+    "<?xml version=\"1.0\" encoding=\"UTF-8\"?><epp xmlns=\"urn:ietf:params:xml:ns:epp-1.0\"><command><update><contact:update xmlns:contact=\"urn:ietf:params:xml:ns:contact-1.0\"><contact:id>${CONTACT2}</contact:id><contact:chg><contact:postalInfo type=\"loc\"><contact:name>Tech Contact ${SUFFIX}</contact:name><contact:org>Updated Tech Corp</contact:org><contact:addr><contact:street>456 Tech Road</contact:street><contact:city>Dubai</contact:city><contact:sp>Dubai</contact:sp><contact:pc>67890</contact:pc><contact:cc>AE</contact:cc></contact:addr></contact:postalInfo></contact:chg></contact:update></update><clTRID>T.CON.UPD.001</clTRID></command></epp>"
 
 # =============================================================================
-# PHASE 2: HOST OPERATIONS
+# PHASE 2: DOMAIN CREATE (using well-known external nameservers)
 # =============================================================================
 log ""
 log "${YLW}═══════════════════════════════════════════${NC}"
-log "${YLW}  PHASE 2: HOST OPERATIONS${NC}"
+log "${YLW}  PHASE 2: DOMAIN CREATE${NC}"
+log "${YLW}═══════════════════════════════════════════${NC}"
+
+run_raw "Domain Check ${DOMAIN1}" \
+    "<?xml version=\"1.0\" encoding=\"UTF-8\"?><epp xmlns=\"urn:ietf:params:xml:ns:epp-1.0\"><command><check><domain:check xmlns:domain=\"urn:ietf:params:xml:ns:domain-1.0\"><domain:name>${DOMAIN1}</domain:name><domain:name>${DOMAIN2}</domain:name></domain:check></check><clTRID>T.DOM.CHK.001</clTRID></command></epp>"
+
+run_raw "Domain Create ${DOMAIN1} (.ae, 1 year)" \
+    "<?xml version=\"1.0\" encoding=\"UTF-8\"?><epp xmlns=\"urn:ietf:params:xml:ns:epp-1.0\"><command><create><domain:create xmlns:domain=\"urn:ietf:params:xml:ns:domain-1.0\"><domain:name>${DOMAIN1}</domain:name><domain:period unit=\"y\">1</domain:period><domain:ns><domain:hostObj>${EXT_NS1}</domain:hostObj><domain:hostObj>${EXT_NS2}</domain:hostObj></domain:ns><domain:registrant>${CONTACT1}</domain:registrant><domain:contact type=\"tech\">${CONTACT2}</domain:contact><domain:authInfo><domain:pw>${AUTH_PW}</domain:pw></domain:authInfo></domain:create></create><clTRID>T.DOM.CR.001</clTRID></command></epp>"
+
+run_raw "Domain Create ${DOMAIN2} (.co.ae with AE extension)" \
+    "<?xml version=\"1.0\" encoding=\"UTF-8\"?><epp xmlns=\"urn:ietf:params:xml:ns:epp-1.0\"><command><create><domain:create xmlns:domain=\"urn:ietf:params:xml:ns:domain-1.0\"><domain:name>${DOMAIN2}</domain:name><domain:period unit=\"y\">1</domain:period><domain:ns><domain:hostObj>${EXT_NS1}</domain:hostObj><domain:hostObj>${EXT_NS2}</domain:hostObj></domain:ns><domain:registrant>${CONTACT1}</domain:registrant><domain:contact type=\"tech\">${CONTACT2}</domain:contact><domain:authInfo><domain:pw>${AUTH_PW}</domain:pw></domain:authInfo></domain:create></create><extension><aeext:create xmlns:aeext=\"urn:X-ae:params:xml:ns:aeext-1.0\"><aeext:aeProperties><aeext:registrantName>Test Company LLC</aeext:registrantName><aeext:registrantID type=\"Trade License\">TL${SUFFIX}999</aeext:registrantID><aeext:eligibilityType>Trade License</aeext:eligibilityType><aeext:policyReason>1</aeext:policyReason></aeext:aeProperties></aeext:create></extension><clTRID>T.DOM.CR.002</clTRID></command></epp>"
+
+run_raw "Domain Info ${DOMAIN1}" \
+    "<?xml version=\"1.0\" encoding=\"UTF-8\"?><epp xmlns=\"urn:ietf:params:xml:ns:epp-1.0\"><command><info><domain:info xmlns:domain=\"urn:ietf:params:xml:ns:domain-1.0\"><domain:name hosts=\"all\">${DOMAIN1}</domain:name></domain:info></info><clTRID>T.DOM.INF.001</clTRID></command></epp>"
+
+run_raw "Domain Info ${DOMAIN2}" \
+    "<?xml version=\"1.0\" encoding=\"UTF-8\"?><epp xmlns=\"urn:ietf:params:xml:ns:epp-1.0\"><command><info><domain:info xmlns:domain=\"urn:ietf:params:xml:ns:domain-1.0\"><domain:name hosts=\"all\">${DOMAIN2}</domain:name></domain:info></info><clTRID>T.DOM.INF.002</clTRID></command></epp>"
+
+# =============================================================================
+# PHASE 3: HOST OPERATIONS (subordinate hosts under DOMAIN1)
+# =============================================================================
+log ""
+log "${YLW}═══════════════════════════════════════════${NC}"
+log "${YLW}  PHASE 3: HOST OPERATIONS (subordinate)${NC}"
 log "${YLW}═══════════════════════════════════════════${NC}"
 
 run_raw "Host Check (both should be available)" \
     "<?xml version=\"1.0\" encoding=\"UTF-8\"?><epp xmlns=\"urn:ietf:params:xml:ns:epp-1.0\"><command><check><host:check xmlns:host=\"urn:ietf:params:xml:ns:host-1.0\"><host:name>${HOST1}</host:name><host:name>${HOST2}</host:name></host:check></check><clTRID>T.HOS.CHK.001</clTRID></command></epp>"
 
-run_raw "Host Create ${HOST1} (external, no glue)" \
-    "<?xml version=\"1.0\" encoding=\"UTF-8\"?><epp xmlns=\"urn:ietf:params:xml:ns:epp-1.0\"><command><create><host:create xmlns:host=\"urn:ietf:params:xml:ns:host-1.0\"><host:name>${HOST1}</host:name></host:create></create><clTRID>T.HOS.CR.001</clTRID></command></epp>"
+run_raw "Host Create ${HOST1} (subordinate, with glue)" \
+    "<?xml version=\"1.0\" encoding=\"UTF-8\"?><epp xmlns=\"urn:ietf:params:xml:ns:epp-1.0\"><command><create><host:create xmlns:host=\"urn:ietf:params:xml:ns:host-1.0\"><host:name>${HOST1}</host:name><host:addr ip=\"v4\">192.0.2.1</host:addr></host:create></create><clTRID>T.HOS.CR.001</clTRID></command></epp>"
 
-run_raw "Host Create ${HOST2} (external, no glue)" \
-    "<?xml version=\"1.0\" encoding=\"UTF-8\"?><epp xmlns=\"urn:ietf:params:xml:ns:epp-1.0\"><command><create><host:create xmlns:host=\"urn:ietf:params:xml:ns:host-1.0\"><host:name>${HOST2}</host:name></host:create></create><clTRID>T.HOS.CR.002</clTRID></command></epp>"
+run_raw "Host Create ${HOST2} (subordinate, with glue)" \
+    "<?xml version=\"1.0\" encoding=\"UTF-8\"?><epp xmlns=\"urn:ietf:params:xml:ns:epp-1.0\"><command><create><host:create xmlns:host=\"urn:ietf:params:xml:ns:host-1.0\"><host:name>${HOST2}</host:name><host:addr ip=\"v4\">192.0.2.2</host:addr></host:create></create><clTRID>T.HOS.CR.002</clTRID></command></epp>"
 
 run_raw "Host Info ${HOST1}" \
     "<?xml version=\"1.0\" encoding=\"UTF-8\"?><epp xmlns=\"urn:ietf:params:xml:ns:epp-1.0\"><command><info><host:info xmlns:host=\"urn:ietf:params:xml:ns:host-1.0\"><host:name>${HOST1}</host:name></host:info></info><clTRID>T.HOS.INF.001</clTRID></command></epp>"
@@ -144,28 +169,9 @@ run_raw "Host Info ${HOST1}" \
 run_raw "Host Update ${HOST2} (add status)" \
     "<?xml version=\"1.0\" encoding=\"UTF-8\"?><epp xmlns=\"urn:ietf:params:xml:ns:epp-1.0\"><command><update><host:update xmlns:host=\"urn:ietf:params:xml:ns:host-1.0\"><host:name>${HOST2}</host:name><host:add><host:status s=\"clientUpdateProhibited\"/></host:add></host:update></update><clTRID>T.HOS.UPD.001</clTRID></command></epp>"
 
-# =============================================================================
-# PHASE 3: DOMAIN CREATE (.ae plain + .co.ae with extension)
-# =============================================================================
-log ""
-log "${YLW}═══════════════════════════════════════════${NC}"
-log "${YLW}  PHASE 3: DOMAIN CREATE${NC}"
-log "${YLW}═══════════════════════════════════════════${NC}"
-
-run_raw "Domain Check ${DOMAIN1}" \
-    "<?xml version=\"1.0\" encoding=\"UTF-8\"?><epp xmlns=\"urn:ietf:params:xml:ns:epp-1.0\"><command><check><domain:check xmlns:domain=\"urn:ietf:params:xml:ns:domain-1.0\"><domain:name>${DOMAIN1}</domain:name><domain:name>${DOMAIN2}</domain:name></domain:check></check><clTRID>T.DOM.CHK.001</clTRID></command></epp>"
-
-run_raw "Domain Create ${DOMAIN1} (.ae, 1 year)" \
-    "<?xml version=\"1.0\" encoding=\"UTF-8\"?><epp xmlns=\"urn:ietf:params:xml:ns:epp-1.0\"><command><create><domain:create xmlns:domain=\"urn:ietf:params:xml:ns:domain-1.0\"><domain:name>${DOMAIN1}</domain:name><domain:period unit=\"y\">1</domain:period><domain:ns><domain:hostObj>${HOST1}</domain:hostObj><domain:hostObj>${HOST2}</domain:hostObj></domain:ns><domain:registrant>${CONTACT1}</domain:registrant><domain:contact type=\"tech\">${CONTACT2}</domain:contact><domain:authInfo><domain:pw>${AUTH_PW}</domain:pw></domain:authInfo></domain:create></create><clTRID>T.DOM.CR.001</clTRID></command></epp>"
-
-run_raw "Domain Create ${DOMAIN2} (.co.ae with AE extension)" \
-    "<?xml version=\"1.0\" encoding=\"UTF-8\"?><epp xmlns=\"urn:ietf:params:xml:ns:epp-1.0\"><command><create><domain:create xmlns:domain=\"urn:ietf:params:xml:ns:domain-1.0\"><domain:name>${DOMAIN2}</domain:name><domain:period unit=\"y\">1</domain:period><domain:ns><domain:hostObj>${HOST1}</domain:hostObj><domain:hostObj>${HOST2}</domain:hostObj></domain:ns><domain:registrant>${CONTACT1}</domain:registrant><domain:contact type=\"tech\">${CONTACT2}</domain:contact><domain:authInfo><domain:pw>${AUTH_PW}</domain:pw></domain:authInfo></domain:create></create><extension><aeext:create xmlns:aeext=\"urn:X-ae:params:xml:ns:aeext-1.0\"><aeext:aeProperties><aeext:registrantName>Test Company LLC</aeext:registrantName><aeext:registrantID type=\"Trade License\">TL${SUFFIX}999</aeext:registrantID><aeext:eligibilityType>Trade License</aeext:eligibilityType><aeext:policyReason>1</aeext:policyReason></aeext:aeProperties></aeext:create></extension><clTRID>T.DOM.CR.002</clTRID></command></epp>"
-
-run_raw "Domain Info ${DOMAIN1}" \
-    "<?xml version=\"1.0\" encoding=\"UTF-8\"?><epp xmlns=\"urn:ietf:params:xml:ns:epp-1.0\"><command><info><domain:info xmlns:domain=\"urn:ietf:params:xml:ns:domain-1.0\"><domain:name hosts=\"all\">${DOMAIN1}</domain:name></domain:info></info><clTRID>T.DOM.INF.001</clTRID></command></epp>"
-
-run_raw "Domain Info ${DOMAIN2}" \
-    "<?xml version=\"1.0\" encoding=\"UTF-8\"?><epp xmlns=\"urn:ietf:params:xml:ns:epp-1.0\"><command><info><domain:info xmlns:domain=\"urn:ietf:params:xml:ns:domain-1.0\"><domain:name hosts=\"all\">${DOMAIN2}</domain:name></domain:info></info><clTRID>T.DOM.INF.002</clTRID></command></epp>"
+# Switch domain NS to external before deleting subordinate hosts
+run_raw "Domain Update (switch NS to external before host cleanup)" \
+    "<?xml version=\"1.0\" encoding=\"UTF-8\"?><epp xmlns=\"urn:ietf:params:xml:ns:epp-1.0\"><command><update><domain:update xmlns:domain=\"urn:ietf:params:xml:ns:domain-1.0\"><domain:name>${DOMAIN1}</domain:name><domain:add><domain:ns><domain:hostObj>${EXT_NS1}</domain:hostObj><domain:hostObj>${EXT_NS2}</domain:hostObj></domain:ns></domain:add><domain:rem><domain:ns><domain:hostObj>${HOST1}</domain:hostObj><domain:hostObj>${HOST2}</domain:hostObj></domain:ns></domain:rem></domain:update></update><clTRID>T.HOS.PREP.001</clTRID></command></epp>"
 
 # =============================================================================
 # PHASE 4: DOMAIN STATUS UPDATES (clientHold, clientDelete/Renew/UpdateProhibited)
@@ -243,6 +249,7 @@ fi
 
 # =============================================================================
 # PHASE 7: DOMAIN TRANSFER
+# Cancel any pending transfer first, then request fresh
 # =============================================================================
 log ""
 log "${YLW}═══════════════════════════════════════════${NC}"
@@ -251,6 +258,14 @@ log "${YLW}═══════════════════════
 
 run_raw "Domain Info (before transfer)" \
     "<?xml version=\"1.0\" encoding=\"UTF-8\"?><epp xmlns=\"urn:ietf:params:xml:ns:epp-1.0\"><command><info><domain:info xmlns:domain=\"urn:ietf:params:xml:ns:domain-1.0\"><domain:name hosts=\"all\">${TRANSFER_DOMAIN}</domain:name></domain:info></info><clTRID>T.TR.INF.001</clTRID></command></epp>"
+
+# Cancel any pending transfer from a previous test run (ignore errors)
+log ""
+log "  (Cancelling any stale pending transfer...)"
+set +e
+epp raw "<?xml version=\"1.0\" encoding=\"UTF-8\"?><epp xmlns=\"urn:ietf:params:xml:ns:epp-1.0\"><command><transfer op=\"cancel\"><domain:transfer xmlns:domain=\"urn:ietf:params:xml:ns:domain-1.0\"><domain:name>${TRANSFER_DOMAIN}</domain:name></domain:transfer></transfer><clTRID>T.TR.CLEANUP</clTRID></command></epp>" --pretty >> "$LOG_FILE" 2>&1
+set -e
+sleep 0.5
 
 run_raw "Transfer Request" \
     "<?xml version=\"1.0\" encoding=\"UTF-8\"?><epp xmlns=\"urn:ietf:params:xml:ns:epp-1.0\"><command><transfer op=\"request\"><domain:transfer xmlns:domain=\"urn:ietf:params:xml:ns:domain-1.0\"><domain:name>${TRANSFER_DOMAIN}</domain:name><domain:authInfo><domain:pw>${TRANSFER_AUTH}</domain:pw></domain:authInfo></domain:transfer></transfer><clTRID>T.TR.REQ.001</clTRID></command></epp>" \
@@ -318,7 +333,7 @@ run_raw "Domain Delete ${DOMAIN1}" \
     "<?xml version=\"1.0\" encoding=\"UTF-8\"?><epp xmlns=\"urn:ietf:params:xml:ns:epp-1.0\"><command><delete><domain:delete xmlns:domain=\"urn:ietf:params:xml:ns:domain-1.0\"><domain:name>${DOMAIN1}</domain:name></domain:delete></delete><clTRID>T.DOM.DEL.002</clTRID></command></epp>"
 
 # =============================================================================
-# PHASE 11: HOST DELETE
+# PHASE 11: HOST DELETE (subordinate hosts, removed from domain NS already)
 # =============================================================================
 log ""
 log "${YLW}═══════════════════════════════════════════${NC}"
