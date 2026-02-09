@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Domain Info with Variant extension (request variant information) -->
+<epp xmlns="urn:ietf:params:xml:ns:epp-1.0">
+  <command>
+    <info>
+      <domain:info xmlns:domain="urn:ietf:params:xml:ns:domain-1.0">
+        <domain:name hosts="all">example.ae</domain:name>
+      </domain:info>
+    </info>
+    <extension>
+      <!-- variants: "all" to get all variants -->
+      <variant:info xmlns:variant="urn:X-ar:params:xml:ns:variant-1.0" variants="all"/>
+    </extension>
+    <clTRID>DOM.INFO.VAR.001</clTRID>
+  </command>
+</epp>

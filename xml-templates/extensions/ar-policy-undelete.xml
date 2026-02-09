@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AR Extension: Policy Undelete (restore a policy-deleted domain) -->
+<epp xmlns="urn:ietf:params:xml:ns:epp-1.0">
+  <command>
+    <update>
+      <arext:update xmlns:arext="urn:X-ar:params:xml:ns:arext-1.0">
+        <arext:policyUndelete>
+          <arext:domainName>example.ae</arext:domainName>
+        </arext:policyUndelete>
+      </arext:update>
+    </update>
+    <clTRID>AR.POLUNDELETE.001</clTRID>
+  </command>
+</epp>

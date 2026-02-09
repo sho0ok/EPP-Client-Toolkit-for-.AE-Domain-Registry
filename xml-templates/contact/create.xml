@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<epp xmlns="urn:ietf:params:xml:ns:epp-1.0">
+  <command>
+    <create>
+      <contact:create xmlns:contact="urn:ietf:params:xml:ns:contact-1.0">
+        <contact:id>NEWCONTACT001</contact:id>
+
+        <!-- International (ASCII) postal info - REQUIRED -->
+        <contact:postalInfo type="int">
+          <contact:name>John Doe</contact:name>
+          <contact:org>Example Corporation</contact:org>
+          <contact:addr>
+            <contact:street>123 Main Street</contact:street>
+            <!-- Up to 3 street lines allowed -->
+            <!-- <contact:street>Suite 100</contact:street> -->
+            <contact:city>Dubai</contact:city>
+            <contact:sp>Dubai</contact:sp>
+            <contact:pc>12345</contact:pc>
+            <!-- cc: ISO 3166-1 alpha-2 country code -->
+            <contact:cc>AE</contact:cc>
+          </contact:addr>
+        </contact:postalInfo>
+
+        <!-- Local (native script) postal info - OPTIONAL -->
+        <!--
+        <contact:postalInfo type="loc">
+          <contact:name>جون دو</contact:name>
+          <contact:org>شركة مثال</contact:org>
+          <contact:addr>
+            <contact:street>شارع رئيسي 123</contact:street>
+            <contact:city>دبي</contact:city>
+            <contact:cc>AE</contact:cc>
+          </contact:addr>
+        </contact:postalInfo>
+        -->
+
+        <!-- Phone: +CC.NNNNNNNNNNxEEEE format (x=extension, optional) -->
+        <contact:voice>+971.41234567</contact:voice>
+        <contact:fax>+971.41234568</contact:fax>
+        <contact:email>john@example.ae</contact:email>
+
+        <contact:authInfo>
+          <contact:pw>Ab12!@Cd34#$Ef56</contact:pw>
+        </contact:authInfo>
+
+        <!-- Disclosure preferences (optional) -->
+        <!-- flag="1" = disclose listed elements, flag="0" = hide listed elements -->
+        <!--
+        <contact:disclose flag="1">
+          <contact:name type="int"/>
+          <contact:org type="int"/>
+          <contact:addr type="int"/>
+          <contact:voice/>
+          <contact:fax/>
+          <contact:email/>
+        </contact:disclose>
+        -->
+      </contact:create>
+    </create>
+    <clTRID>CON.CREATE.001</clTRID>
+  </command>
+</epp>

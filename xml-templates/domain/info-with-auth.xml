@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Domain Info - with auth info (returns full details including auth password) -->
+<epp xmlns="urn:ietf:params:xml:ns:epp-1.0">
+  <command>
+    <info>
+      <domain:info xmlns:domain="urn:ietf:params:xml:ns:domain-1.0">
+        <domain:name hosts="all">example.ae</domain:name>
+        <domain:authInfo>
+          <domain:pw>DOMAIN_PASSWORD</domain:pw>
+        </domain:authInfo>
+      </domain:info>
+    </info>
+    <clTRID>DOM.INFO.002</clTRID>
+  </command>
+</epp>

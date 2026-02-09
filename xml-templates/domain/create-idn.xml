@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Domain Create - IDN (Internationalized Domain Name) e.g. .امارات -->
+<epp xmlns="urn:ietf:params:xml:ns:epp-1.0">
+  <command>
+    <create>
+      <domain:create xmlns:domain="urn:ietf:params:xml:ns:domain-1.0">
+        <!-- Use the ACE (punycode) form for the domain name -->
+        <domain:name>xn--example.xn--mgbaam7a8h</domain:name>
+        <domain:period unit="y">1</domain:period>
+        <domain:ns>
+          <domain:hostObj>ns1.example.ae</domain:hostObj>
+          <domain:hostObj>ns2.example.ae</domain:hostObj>
+        </domain:ns>
+        <domain:registrant>REGISTRANT_ID</domain:registrant>
+        <domain:contact type="tech">TECH_CONTACT_ID</domain:contact>
+        <domain:authInfo>
+          <domain:pw>Ab12!@Cd34#$Ef56</domain:pw>
+        </domain:authInfo>
+      </domain:create>
+    </create>
+    <extension>
+      <idnadomain:create xmlns:idnadomain="urn:X-ar:params:xml:ns:idnadomain-1.0">
+        <!-- language: ISO 639-1 code (e.g. "ar" for Arabic) -->
+        <idnadomain:userForm language="ar">مثال.امارات</idnadomain:userForm>
+      </idnadomain:create>
+    </extension>
+    <clTRID>DOM.CREATE.009</clTRID>
+  </command>
+</epp>

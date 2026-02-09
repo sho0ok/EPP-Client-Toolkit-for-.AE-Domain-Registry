@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Domain Create - basic .ae domain (no extension required) -->
+<epp xmlns="urn:ietf:params:xml:ns:epp-1.0">
+  <command>
+    <create>
+      <domain:create xmlns:domain="urn:ietf:params:xml:ns:domain-1.0">
+        <domain:name>example.ae</domain:name>
+        <!-- unit: "y" (years) | "m" (months) -->
+        <domain:period unit="y">1</domain:period>
+        <domain:ns>
+          <domain:hostObj>ns1.example.ae</domain:hostObj>
+          <domain:hostObj>ns2.example.ae</domain:hostObj>
+        </domain:ns>
+        <domain:registrant>REGISTRANT_ID</domain:registrant>
+        <domain:contact type="tech">TECH_CONTACT_ID</domain:contact>
+        <!-- Optional contacts: -->
+        <!-- <domain:contact type="admin">ADMIN_CONTACT_ID</domain:contact> -->
+        <!-- <domain:contact type="billing">BILLING_CONTACT_ID</domain:contact> -->
+        <domain:authInfo>
+          <domain:pw>Ab12!@Cd34#$Ef56</domain:pw>
+        </domain:authInfo>
+      </domain:create>
+    </create>
+    <clTRID>DOM.CREATE.001</clTRID>
+  </command>
+</epp>

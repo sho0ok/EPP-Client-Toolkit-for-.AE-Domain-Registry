@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Domain Create - .ac.ae with AE eligibility extension -->
+<!-- Valid eligibilityType for ac.ae:
+     School, Academy, Technical College, University
+     Valid policyReason: 1, 2, 3, 4 -->
+<epp xmlns="urn:ietf:params:xml:ns:epp-1.0">
+  <command>
+    <create>
+      <domain:create xmlns:domain="urn:ietf:params:xml:ns:domain-1.0">
+        <domain:name>example.ac.ae</domain:name>
+        <domain:period unit="y">1</domain:period>
+        <domain:ns>
+          <domain:hostObj>ns1.example.ae</domain:hostObj>
+          <domain:hostObj>ns2.example.ae</domain:hostObj>
+        </domain:ns>
+        <domain:registrant>REGISTRANT_ID</domain:registrant>
+        <domain:contact type="tech">TECH_CONTACT_ID</domain:contact>
+        <domain:authInfo>
+          <domain:pw>Ab12!@Cd34#$Ef56</domain:pw>
+        </domain:authInfo>
+      </domain:create>
+    </create>
+    <extension>
+      <aeext:create xmlns:aeext="urn:X-ae:params:xml:ns:aeext-1.0">
+        <aeext:aeProperties>
+          <aeext:registrantName>University Name</aeext:registrantName>
+          <aeext:eligibilityType>University</aeext:eligibilityType>
+          <aeext:policyReason>1</aeext:policyReason>
+        </aeext:aeProperties>
+      </aeext:create>
+    </extension>
+    <clTRID>DOM.CREATE.008</clTRID>
+  </command>
+</epp>

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Domain Update - add/remove DNSSEC DS data (RFC 5910) -->
+<epp xmlns="urn:ietf:params:xml:ns:epp-1.0">
+  <command>
+    <update>
+      <domain:update xmlns:domain="urn:ietf:params:xml:ns:domain-1.0">
+        <domain:name>example.ae</domain:name>
+      </domain:update>
+    </update>
+    <extension>
+      <secDNS:update xmlns:secDNS="urn:ietf:params:xml:ns:secDNS-1.1">
+        <!-- Remove existing DS data -->
+        <secDNS:rem>
+          <!-- Use <secDNS:all>true</secDNS:all> to remove ALL DS records -->
+          <secDNS:all>true</secDNS:all>
+          <!-- Or remove specific DS records: -->
+          <!--
+          <secDNS:dsData>
+            <secDNS:keyTag>12345</secDNS:keyTag>
+            <secDNS:alg>8</secDNS:alg>
+            <secDNS:digestType>2</secDNS:digestType>
+            <secDNS:digest>OLD_DIGEST_HEX</secDNS:digest>
+          </secDNS:dsData>
+          -->
+        </secDNS:rem>
+        <!-- Add new DS data -->
+        <secDNS:add>
+          <secDNS:dsData>
+            <secDNS:keyTag>54321</secDNS:keyTag>
+            <secDNS:alg>13</secDNS:alg>
+            <secDNS:digestType>2</secDNS:digestType>
+            <secDNS:digest>A1B2C3D4E5F6A1B2C3D4E5F6A1B2C3D4E5F6A1B2C3D4E5F6A1B2C3D4E5F61234</secDNS:digest>
+          </secDNS:dsData>
+        </secDNS:add>
+      </secDNS:update>
+    </extension>
+    <clTRID>DOM.UPDATE.DNSSEC.001</clTRID>
+  </command>
+</epp>

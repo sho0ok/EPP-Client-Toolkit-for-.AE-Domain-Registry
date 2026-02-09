@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Host Create - glue records required for subordinate hosts -->
+<!-- IP addresses required only for hosts under managed zones (e.g. ns1.example.ae) -->
+<!-- External hosts (e.g. ns1.externaldns.com) don't need IP addresses -->
+<epp xmlns="urn:ietf:params:xml:ns:epp-1.0">
+  <command>
+    <create>
+      <host:create xmlns:host="urn:ietf:params:xml:ns:host-1.0">
+        <host:name>ns1.example.ae</host:name>
+        <!-- ip="v4" for IPv4, ip="v6" for IPv6 -->
+        <host:addr ip="v4">192.168.1.1</host:addr>
+        <host:addr ip="v4">192.168.1.2</host:addr>
+        <host:addr ip="v6">2001:db8::1</host:addr>
+      </host:create>
+    </create>
+    <clTRID>HOST.CREATE.001</clTRID>
+  </command>
+</epp>

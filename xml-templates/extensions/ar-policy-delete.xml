@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AR Extension: Policy Delete (registry-initiated delete with reason) -->
+<epp xmlns="urn:ietf:params:xml:ns:epp-1.0">
+  <command>
+    <update>
+      <arext:update xmlns:arext="urn:X-ar:params:xml:ns:arext-1.0">
+        <arext:policyDelete>
+          <arext:domainName>example.ae</arext:domainName>
+          <arext:reason>Policy violation</arext:reason>
+        </arext:policyDelete>
+      </arext:update>
+    </update>
+    <clTRID>AR.POLDELETE.001</clTRID>
+  </command>
+</epp>

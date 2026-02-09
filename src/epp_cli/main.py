@@ -2746,6 +2746,170 @@ def _shell_poll(pool: SyncEPPConnectionPool, formatter: OutputFormatter, args: l
 
 
 # =============================================================================
+# Raw XML Command
+# =============================================================================
+
+@cli.command("raw")
+@click.argument("xml_input", required=False)
+@click.option("--file", "-f", "xml_file", type=click.Path(exists=True), help="Read XML from file")
+@click.option("--stdin", "-s", "use_stdin", is_flag=True, help="Read XML from stdin")
+@click.option("--no-login", is_flag=True, help="Skip auto login/logout (send XML on raw connection after greeting)")
+@click.option("--pretty", is_flag=True, help="Pretty-print the XML response")
+@click.option("--cltrid", help="Replace clTRID in the XML before sending")
+@click.pass_context
+def raw_command(ctx, xml_input, xml_file, use_stdin, no_login, pretty, cltrid):
+    """
+    Send raw EPP XML command and display the response.
+
+    The XML can be provided as an argument, from a file, or from stdin.
+    By default, the client connects, logs in, sends the XML, and logs out.
+    Use --no-login to skip login/logout (for sending login/logout XML yourself).
+
+    \b
+    Input methods (pick one):
+      epp raw '<epp>...</epp>'              Inline XML string
+      epp raw --file command.xml            Read from file
+      cat command.xml | epp raw --stdin     Read from stdin
+
+    \b
+    Examples:
+      # Send a domain check via raw XML
+      epp raw --file domain-check.xml
+
+      # Send inline XML
+      epp raw '<?xml version="1.0" encoding="UTF-8"?><epp xmlns="urn:ietf:params:xml:ns:epp-1.0"><command><check><domain:check xmlns:domain="urn:ietf:params:xml:ns:domain-1.0"><domain:name>example.ae</domain:name></domain:check></check><clTRID>RAW.001</clTRID></command></epp>'
+
+      # Pipe from file
+      cat domain-info.xml | epp raw --stdin
+
+      # Send login XML manually (skip auto-login)
+      epp raw --no-login --file login.xml
+
+      # Pretty-print the response
+      epp raw --file command.xml --pretty
+    """
+    import io
+    from lxml import etree
+
+    # Determine XML source
+    xml_bytes = None
+    if xml_file:
+        with open(xml_file, "rb") as f:
+            xml_bytes = f.read()
+    elif use_stdin:
+        xml_bytes = sys.stdin.buffer.read()
+    elif xml_input:
+        xml_bytes = xml_input.encode("utf-8")
+    else:
+        print_error("No XML input provided. Use an argument, --file, or --stdin.")
+        print_error("  epp raw '<epp>...</epp>'")
+        print_error("  epp raw --file command.xml")
+        print_error("  cat command.xml | epp raw --stdin")
+        sys.exit(1)
+
+    # Strip BOM if present
+    if xml_bytes.startswith(b'\xef\xbb\xbf'):
+        xml_bytes = xml_bytes[3:]
+
+    xml_bytes = xml_bytes.strip()
+
+    # Validate it's well-formed XML
+    try:
+        doc = etree.fromstring(xml_bytes)
+    except etree.XMLSyntaxError as e:
+        print_error(f"Invalid XML: {e}")
+        sys.exit(1)
+
+    # Replace clTRID if requested
+    if cltrid:
+        EPP_NS = "urn:ietf:params:xml:ns:epp-1.0"
+        nsmap = {"epp": EPP_NS}
+        cltrid_elem = doc.find(".//epp:clTRID", nsmap)
+        if cltrid_elem is not None:
+            cltrid_elem.text = cltrid
+        else:
+            # Try without namespace (some XML may not use prefixes)
+            cltrid_elem = doc.find(".//{%s}clTRID" % EPP_NS)
+            if cltrid_elem is not None:
+                cltrid_elem.text = cltrid
+        xml_bytes = etree.tostring(doc, xml_declaration=True, encoding="UTF-8")
+
+    # Get connection parameters
+    host = ctx.obj.get("host")
+    if not host:
+        print_error("No server host specified. Use --host or config file.")
+        sys.exit(1)
+
+    try:
+        client = EPPClient(
+            host=host,
+            port=ctx.obj.get("port", 700),
+            cert_file=ctx.obj.get("cert"),
+            key_file=ctx.obj.get("key"),
+            ca_file=ctx.obj.get("ca"),
+            timeout=ctx.obj.get("timeout", 30),
+            verify_server=ctx.obj.get("verify", True),
+        )
+
+        # Connect (receives greeting)
+        client.connect()
+
+        if not no_login:
+            # Normal mode: login, send command, logout
+            client_id = ctx.obj.get("client_id")
+            password = ctx.obj.get("password")
+            if not client_id:
+                print_error("No client ID specified. Use --client-id or config file.")
+                sys.exit(1)
+            if not password:
+                password = getpass.getpass("Password: ")
+
+            client.login(client_id, password)
+
+            try:
+                response_xml = client.send_raw(xml_bytes)
+            finally:
+                try:
+                    client.logout()
+                except Exception:
+                    pass
+                client._connection.disconnect()
+        else:
+            # No-login mode: send raw XML directly after greeting
+            # Caller handles login/logout in their XML
+            try:
+                response_xml = client.send_raw(xml_bytes)
+            finally:
+                client._connection.disconnect()
+
+        # Display response
+        if pretty:
+            try:
+                response_doc = etree.fromstring(response_xml)
+                etree.indent(response_doc)
+                output = etree.tostring(
+                    response_doc, xml_declaration=True,
+                    encoding="UTF-8", pretty_print=True
+                ).decode("utf-8")
+                click.echo(output)
+            except etree.XMLSyntaxError:
+                # If response isn't valid XML, print as-is
+                click.echo(response_xml.decode("utf-8", errors="replace"))
+        else:
+            click.echo(response_xml.decode("utf-8", errors="replace"))
+
+    except EPPConnectionError as e:
+        print_error(f"Connection failed: {e}")
+        sys.exit(1)
+    except EPPAuthenticationError as e:
+        print_error(f"Authentication failed: {e}")
+        sys.exit(1)
+    except EPPError as e:
+        print_error(f"EPP error: {e}")
+        sys.exit(1)
+
+
+# =============================================================================
 # Entry Point
 # =============================================================================
 

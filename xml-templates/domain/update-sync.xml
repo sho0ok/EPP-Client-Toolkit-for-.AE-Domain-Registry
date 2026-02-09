@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Domain Update - synchronize expiry date (AR sync extension) -->
+<epp xmlns="urn:ietf:params:xml:ns:epp-1.0">
+  <command>
+    <update>
+      <domain:update xmlns:domain="urn:ietf:params:xml:ns:domain-1.0">
+        <domain:name>example.ae</domain:name>
+      </domain:update>
+    </update>
+    <extension>
+      <sync:update xmlns:sync="urn:X-ar:params:xml:ns:sync-1.0">
+        <sync:exDate>2027-12-31T23:59:59Z</sync:exDate>
+      </sync:update>
+    </extension>
+    <clTRID>DOM.UPDATE.SYNC.001</clTRID>
+  </command>
+</epp>

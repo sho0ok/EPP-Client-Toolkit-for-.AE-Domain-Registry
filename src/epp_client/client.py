@@ -251,6 +251,38 @@ class EPPClient:
         raise EPPCommandError(message, code)
 
     # =========================================================================
+    # Raw XML
+    # =========================================================================
+
+    def send_raw(self, xml_data: bytes) -> bytes:
+        """
+        Send raw EPP XML and return the raw XML response.
+
+        The XML is sent as-is over the EPP connection with 4-byte length
+        framing per RFC 5734. No parsing, validation, or transformation
+        is performed on either the request or response.
+
+        This allows sending any valid EPP XML command, including those
+        not directly supported by the client's high-level API.
+
+        The caller is responsible for ensuring the session is in the
+        correct state (e.g. logged in) for the command being sent.
+
+        Args:
+            xml_data: Raw EPP XML bytes to send
+
+        Returns:
+            Raw EPP XML response bytes from server
+
+        Raises:
+            EPPConnectionError: If not connected
+        """
+        if not self.is_connected:
+            raise EPPConnectionError("Not connected to server")
+
+        return self._connection.send_and_receive(xml_data)
+
+    # =========================================================================
     # Connection Management
     # =========================================================================
 

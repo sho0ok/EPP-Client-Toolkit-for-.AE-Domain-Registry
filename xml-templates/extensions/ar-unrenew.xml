@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AR Extension: Unrenew a domain (reverse a renewal) -->
+<epp xmlns="urn:ietf:params:xml:ns:epp-1.0">
+  <command>
+    <update>
+      <arext:update xmlns:arext="urn:X-ar:params:xml:ns:arext-1.0">
+        <arext:unrenew>
+          <arext:domainName>example.ae</arext:domainName>
+          <arext:curExpDate>2027-12-31</arext:curExpDate>
+        </arext:unrenew>
+      </arext:update>
+    </update>
+    <clTRID>AR.UNRENEW.001</clTRID>
+  </command>
+</epp>

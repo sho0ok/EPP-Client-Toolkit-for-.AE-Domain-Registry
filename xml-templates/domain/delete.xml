@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<epp xmlns="urn:ietf:params:xml:ns:epp-1.0">
+  <command>
+    <delete>
+      <domain:delete xmlns:domain="urn:ietf:params:xml:ns:domain-1.0">
+        <domain:name>example.ae</domain:name>
+      </domain:delete>
+    </delete>
+    <clTRID>DOM.DELETE.001</clTRID>
+  </command>
+</epp>

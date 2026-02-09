@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AE Extension: Registrant Transfer (change legal entity for .ae domain) -->
+<epp xmlns="urn:ietf:params:xml:ns:epp-1.0">
+  <command>
+    <update>
+      <aeext:update xmlns:aeext="urn:X-ae:params:xml:ns:aeext-1.0">
+        <aeext:registrantTransfer>
+          <aeext:domainName>example.ae</aeext:domainName>
+          <aeext:curExpDate>2027-12-31</aeext:curExpDate>
+          <aeext:period unit="y">1</aeext:period>
+          <aeext:aeProperties>
+            <aeext:registrantName>New Company Name LLC</aeext:registrantName>
+            <aeext:registrantID type="Trade License">NEW_TL_123456</aeext:registrantID>
+            <aeext:eligibilityType>Trade License</aeext:eligibilityType>
+            <aeext:eligibilityName>New Business Name</aeext:eligibilityName>
+            <!-- <aeext:eligibilityID type="Trademark">NEW_TM_789</aeext:eligibilityID> -->
+            <aeext:policyReason>1</aeext:policyReason>
+          </aeext:aeProperties>
+          <aeext:explanation>Company acquired by new entity</aeext:explanation>
+        </aeext:registrantTransfer>
+      </aeext:update>
+    </update>
+    <clTRID>AE.REGTRANSFER.001</clTRID>
+  </command>
+</epp>

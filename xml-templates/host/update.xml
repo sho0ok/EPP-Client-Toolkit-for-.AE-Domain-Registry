@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<epp xmlns="urn:ietf:params:xml:ns:epp-1.0">
+  <command>
+    <update>
+      <host:update xmlns:host="urn:ietf:params:xml:ns:host-1.0">
+        <host:name>ns1.example.ae</host:name>
+
+        <!-- Add addresses/statuses (optional) -->
+        <host:add>
+          <host:addr ip="v4">192.168.1.3</host:addr>
+          <host:addr ip="v6">2001:db8::2</host:addr>
+          <host:status s="clientDeleteProhibited"/>
+        </host:add>
+
+        <!-- Remove addresses/statuses (optional) -->
+        <host:rem>
+          <host:addr ip="v4">192.168.1.1</host:addr>
+          <host:status s="clientHold"/>
+        </host:rem>
+
+        <!-- Rename host (optional) -->
+        <host:chg>
+          <host:name>ns1-new.example.ae</host:name>
+        </host:chg>
+      </host:update>
+    </update>
+    <clTRID>HOST.UPDATE.001</clTRID>
+  </command>
+</epp>

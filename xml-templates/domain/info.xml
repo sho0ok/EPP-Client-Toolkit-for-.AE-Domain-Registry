@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Domain Info - basic (no auth info) -->
+<epp xmlns="urn:ietf:params:xml:ns:epp-1.0">
+  <command>
+    <info>
+      <domain:info xmlns:domain="urn:ietf:params:xml:ns:domain-1.0">
+        <!-- hosts: "all" | "del" | "sub" | "none" -->
+        <domain:name hosts="all">example.ae</domain:name>
+      </domain:info>
+    </info>
+    <clTRID>DOM.INFO.001</clTRID>
+  </command>
+</epp>

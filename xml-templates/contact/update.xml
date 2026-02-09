@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<epp xmlns="urn:ietf:params:xml:ns:epp-1.0">
+  <command>
+    <update>
+      <contact:update xmlns:contact="urn:ietf:params:xml:ns:contact-1.0">
+        <contact:id>CONTACT001</contact:id>
+
+        <!-- Add statuses (optional) -->
+        <contact:add>
+          <contact:status s="clientDeleteProhibited"/>
+        </contact:add>
+
+        <!-- Remove statuses (optional) -->
+        <contact:rem>
+          <contact:status s="clientHold"/>
+        </contact:rem>
+
+        <!-- Change contact details (optional) -->
+        <contact:chg>
+          <contact:postalInfo type="int">
+            <contact:name>Jane Doe</contact:name>
+            <contact:org>New Corporation</contact:org>
+            <contact:addr>
+              <contact:street>456 Oak Avenue</contact:street>
+              <contact:city>Abu Dhabi</contact:city>
+              <contact:sp>Abu Dhabi</contact:sp>
+              <contact:pc>54321</contact:pc>
+              <contact:cc>AE</contact:cc>
+            </contact:addr>
+          </contact:postalInfo>
+          <contact:voice>+971.29876543</contact:voice>
+          <contact:fax>+971.29876544</contact:fax>
+          <contact:email>jane@example.ae</contact:email>
+          <contact:authInfo>
+            <contact:pw>NewPassword!@34Ab</contact:pw>
+          </contact:authInfo>
+        </contact:chg>
+      </contact:update>
+    </update>
+    <clTRID>CON.UPDATE.001</clTRID>
+  </command>
+</epp>

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Domain Create - .co.ae with AE eligibility extension -->
+<!-- Valid eligibilityType for co.ae:
+     Trade License, Trade License (IT), Trademark, Trademark (IT),
+     Freezone Trade License, Freezone Trade License (IT),
+     Freezone Trademark, Freezone Trademark (IT)
+     Valid policyReason: 1, 2, 3, 4 -->
+<epp xmlns="urn:ietf:params:xml:ns:epp-1.0">
+  <command>
+    <create>
+      <domain:create xmlns:domain="urn:ietf:params:xml:ns:domain-1.0">
+        <domain:name>example.co.ae</domain:name>
+        <domain:period unit="y">1</domain:period>
+        <domain:ns>
+          <domain:hostObj>ns1.example.ae</domain:hostObj>
+          <domain:hostObj>ns2.example.ae</domain:hostObj>
+        </domain:ns>
+        <domain:registrant>REGISTRANT_ID</domain:registrant>
+        <domain:contact type="tech">TECH_CONTACT_ID</domain:contact>
+        <domain:authInfo>
+          <domain:pw>Ab12!@Cd34#$Ef56</domain:pw>
+        </domain:authInfo>
+      </domain:create>
+    </create>
+    <extension>
+      <aeext:create xmlns:aeext="urn:X-ae:params:xml:ns:aeext-1.0">
+        <aeext:aeProperties>
+          <aeext:registrantName>Company Name LLC</aeext:registrantName>
+          <aeext:registrantID type="Trade License">123456</aeext:registrantID>
+          <aeext:eligibilityType>Trade License</aeext:eligibilityType>
+          <!-- Optional: eligibilityName, eligibilityID -->
+          <!-- <aeext:eligibilityName>Business Name</aeext:eligibilityName> -->
+          <!-- <aeext:eligibilityID type="Trademark">TM789</aeext:eligibilityID> -->
+          <aeext:policyReason>1</aeext:policyReason>
+        </aeext:aeProperties>
+      </aeext:create>
+    </extension>
+    <clTRID>DOM.CREATE.002</clTRID>
+  </command>
+</epp>
