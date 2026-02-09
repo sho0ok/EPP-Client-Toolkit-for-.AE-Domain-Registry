@@ -85,43 +85,46 @@ def _add_cl_trid(command: etree._Element, cl_trid: str = None) -> None:
     etree.SubElement(command, "{%s}clTRID" % EPP_NS).text = cl_trid
 
 
-# AE Eligibility namespace
-AE_ELIGIBILITY_NS = "urn:aeda:params:xml:ns:aeEligibility-1.0"
+# AE Extension namespace (ARI standard aeext-1.0)
+AEEXT_NS = "urn:X-ae:params:xml:ns:aeext-1.0"
 
 
 def _add_ae_eligibility_extension(command: etree._Element, eligibility) -> None:
-    """Add AE Eligibility extension to command."""
+    """Add AE Eligibility extension to command per aeext-1.0 spec."""
     extension = etree.SubElement(command, "{%s}extension" % EPP_NS)
 
+    # <aeext:create> wrapping <aeext:aeProperties>
     ae_create = etree.Element(
-        "{%s}create" % AE_ELIGIBILITY_NS,
-        nsmap={"aeEligibility": AE_ELIGIBILITY_NS}
+        "{%s}create" % AEEXT_NS,
+        nsmap={"aeext": AEEXT_NS}
     )
 
-    # Add eligibility fields
-    if eligibility.eligibility_type:
-        etree.SubElement(ae_create, "{%s}eligibilityType" % AE_ELIGIBILITY_NS).text = eligibility.eligibility_type
+    ae_props = etree.SubElement(ae_create, "{%s}aeProperties" % AEEXT_NS)
 
-    if eligibility.eligibility_name:
-        etree.SubElement(ae_create, "{%s}eligibilityName" % AE_ELIGIBILITY_NS).text = eligibility.eligibility_name
-
-    if eligibility.eligibility_id:
-        etree.SubElement(ae_create, "{%s}eligibilityID" % AE_ELIGIBILITY_NS).text = eligibility.eligibility_id
-
-    if eligibility.eligibility_id_type:
-        etree.SubElement(ae_create, "{%s}eligibilityIDType" % AE_ELIGIBILITY_NS).text = eligibility.eligibility_id_type
-
-    if eligibility.policy_reason is not None:
-        etree.SubElement(ae_create, "{%s}policyReason" % AE_ELIGIBILITY_NS).text = str(eligibility.policy_reason)
+    # Fields per aeext-1.0 spec
+    if eligibility.registrant_name:
+        etree.SubElement(ae_props, "{%s}registrantName" % AEEXT_NS).text = eligibility.registrant_name
 
     if eligibility.registrant_id:
-        etree.SubElement(ae_create, "{%s}registrantID" % AE_ELIGIBILITY_NS).text = eligibility.registrant_id
+        rid = etree.SubElement(ae_props, "{%s}registrantID" % AEEXT_NS)
+        rid.text = eligibility.registrant_id
+        if eligibility.registrant_id_type:
+            rid.set("type", eligibility.registrant_id_type)
 
-    if eligibility.registrant_id_type:
-        etree.SubElement(ae_create, "{%s}registrantIDType" % AE_ELIGIBILITY_NS).text = eligibility.registrant_id_type
+    if eligibility.eligibility_type:
+        etree.SubElement(ae_props, "{%s}eligibilityType" % AEEXT_NS).text = eligibility.eligibility_type
 
-    if eligibility.registrant_name:
-        etree.SubElement(ae_create, "{%s}registrantName" % AE_ELIGIBILITY_NS).text = eligibility.registrant_name
+    if eligibility.eligibility_name:
+        etree.SubElement(ae_props, "{%s}eligibilityName" % AEEXT_NS).text = eligibility.eligibility_name
+
+    if eligibility.eligibility_id:
+        eid = etree.SubElement(ae_props, "{%s}eligibilityID" % AEEXT_NS)
+        eid.text = eligibility.eligibility_id
+        if eligibility.eligibility_id_type:
+            eid.set("type", eligibility.eligibility_id_type)
+
+    if eligibility.policy_reason is not None:
+        etree.SubElement(ae_props, "{%s}policyReason" % AEEXT_NS).text = str(eligibility.policy_reason)
 
     extension.append(ae_create)
 
@@ -1892,29 +1895,33 @@ class XMLBuilder:
         user_form_elem.text = user_form
         user_form_elem.set("language", language)
 
-        # AE Eligibility extension (for .ae/.امارات zones)
+        # AE Extension (aeext:create with aeProperties) for restricted .ae zones
         if ae_eligibility:
             ae_create = etree.SubElement(
                 extension,
-                "{%s}create" % AE_ELIGIBILITY_NS,
-                nsmap={"aeEligibility": AE_ELIGIBILITY_NS}
+                "{%s}create" % AEEXT_NS,
+                nsmap={"aeext": AEEXT_NS}
             )
-            if ae_eligibility.eligibility_type:
-                etree.SubElement(ae_create, "{%s}eligibilityType" % AE_ELIGIBILITY_NS).text = ae_eligibility.eligibility_type
-            if ae_eligibility.eligibility_name:
-                etree.SubElement(ae_create, "{%s}eligibilityName" % AE_ELIGIBILITY_NS).text = ae_eligibility.eligibility_name
-            if ae_eligibility.eligibility_id:
-                etree.SubElement(ae_create, "{%s}eligibilityID" % AE_ELIGIBILITY_NS).text = ae_eligibility.eligibility_id
-            if ae_eligibility.eligibility_id_type:
-                etree.SubElement(ae_create, "{%s}eligibilityIDType" % AE_ELIGIBILITY_NS).text = ae_eligibility.eligibility_id_type
-            if ae_eligibility.policy_reason is not None:
-                etree.SubElement(ae_create, "{%s}policyReason" % AE_ELIGIBILITY_NS).text = str(ae_eligibility.policy_reason)
-            if ae_eligibility.registrant_id:
-                etree.SubElement(ae_create, "{%s}registrantID" % AE_ELIGIBILITY_NS).text = ae_eligibility.registrant_id
-            if ae_eligibility.registrant_id_type:
-                etree.SubElement(ae_create, "{%s}registrantIDType" % AE_ELIGIBILITY_NS).text = ae_eligibility.registrant_id_type
+            ae_props = etree.SubElement(ae_create, "{%s}aeProperties" % AEEXT_NS)
+
             if ae_eligibility.registrant_name:
-                etree.SubElement(ae_create, "{%s}registrantName" % AE_ELIGIBILITY_NS).text = ae_eligibility.registrant_name
+                etree.SubElement(ae_props, "{%s}registrantName" % AEEXT_NS).text = ae_eligibility.registrant_name
+            if ae_eligibility.registrant_id:
+                rid = etree.SubElement(ae_props, "{%s}registrantID" % AEEXT_NS)
+                rid.text = ae_eligibility.registrant_id
+                if ae_eligibility.registrant_id_type:
+                    rid.set("type", ae_eligibility.registrant_id_type)
+            if ae_eligibility.eligibility_type:
+                etree.SubElement(ae_props, "{%s}eligibilityType" % AEEXT_NS).text = ae_eligibility.eligibility_type
+            if ae_eligibility.eligibility_name:
+                etree.SubElement(ae_props, "{%s}eligibilityName" % AEEXT_NS).text = ae_eligibility.eligibility_name
+            if ae_eligibility.eligibility_id:
+                eid = etree.SubElement(ae_props, "{%s}eligibilityID" % AEEXT_NS)
+                eid.text = ae_eligibility.eligibility_id
+                if ae_eligibility.eligibility_id_type:
+                    eid.set("type", ae_eligibility.eligibility_id_type)
+            if ae_eligibility.policy_reason is not None:
+                etree.SubElement(ae_props, "{%s}policyReason" % AEEXT_NS).text = str(ae_eligibility.policy_reason)
 
         _add_cl_trid(command, cl_trid)
         return _to_bytes(root)
