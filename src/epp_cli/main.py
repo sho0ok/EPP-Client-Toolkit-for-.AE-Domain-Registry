@@ -1013,11 +1013,13 @@ def poll_request(ctx, cltrid):
     """Request next poll message."""
     client = get_client(ctx)
     try:
-        result = client.poll_request(cl_trid=cltrid)
-        if result:
-            state.formatter.output(result)
-        else:
+        response, message = client.poll_request(cl_trid=cltrid)
+        if message:
+            state.formatter.output(message)
+        elif response.code == 1300:
             print_info("No messages in queue")
+        else:
+            state.formatter.output(response)
     except EPPCommandError as e:
         print_error(f"Command failed: {e}")
         sys.exit(1)

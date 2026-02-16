@@ -441,8 +441,8 @@ class EPPClient:
         response_xml = self._send_command(xml)
         response = XMLParser.parse_response(response_xml)
 
-        # 1301 = no messages
-        if response.code == 1301:
+        # 1300 = no messages in queue
+        if response.code == 1300:
             return response, None
 
         self._check_response(response)
